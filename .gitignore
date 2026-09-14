@@ -1,0 +1,20 @@
+# --- large raw / derived data (regenerable from the notebooks) ---
+Raw Sets/
+v1_original/
+/ecotwin_outputs/
+v2_clean/ecotwin_outputs/data/
+v2_clean/dynamic_adj_matrix.npy
+v2_clean/EcoTwin_Final_Dataset.csv
+v2_clean/cpcb_stations.xlsx
+*.npy
+!v2_clean/static_adj_matrix.npy
+!v2_clean/v2_clim_grid.npy
+
+# --- jupyter / python cruft ---
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+__pycache__/
+*.pyc
+
+# --- local tooling ---
+.claude/
