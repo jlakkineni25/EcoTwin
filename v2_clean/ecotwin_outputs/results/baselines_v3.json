@@ -1,0 +1,54 @@
+{
+  "note": "RG6 ablation on the v3 pipeline (ERA5 wind + oracle forecast wind). Only the graph varies. Seeds 42/7/123/2024/999.",
+  "v2_pipeline_ref": {
+    "persistence": 83.87,
+    "no_graph": 62.18,
+    "static_gcn": 61.73,
+    "wa_tgcn": 60.88
+  },
+  "v3_pipeline": {
+    "Persistence": {
+      "rmse": 83.87,
+      "mae": 56.93,
+      "r2": 0.31
+    },
+    "No-graph v3": {
+      "rmse": 58.41,
+      "mae": 37.79,
+      "r2": 0.66
+    },
+    "Static-GCN v3": {
+      "rmse": 58.16,
+      "mae": 38.16,
+      "r2": 0.67
+    },
+    "WA-TGCN v3 (dynamic)": {
+      "rmse": 59.08,
+      "mae": 38.27,
+      "r2": 0.66
+    }
+  },
+  "wind_aware_vs_static_gap": -0.92,
+  "by_forecast_wind_regime": {
+    "Persistence": {
+      "Calm(<1.4)": 105.26,
+      "Breezy": 76.91,
+      "Windy(>1.9)": 64.76
+    },
+    "No-graph v3": {
+      "Calm(<1.4)": 79.44,
+      "Breezy": 49.39,
+      "Windy(>1.9)": 39.26
+    },
+    "Static-GCN v3": {
+      "Calm(<1.4)": 78.37,
+      "Breezy": 49.09,
+      "Windy(>1.9)": 40.61
+    },
+    "WA-TGCN v3 (dynamic)": {
+      "Calm(<1.4)": 80.48,
+      "Breezy": 49.61,
+      "Windy(>1.9)": 39.89
+    }
+  }
+}
