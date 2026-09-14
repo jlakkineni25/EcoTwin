@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 import folium
 import plotly.graph_objects as go
 import streamlit as st
-from folium.plugins import PolyLineTextPath
+from folium.plugins import AntPath
 from streamlit_folium import st_folium
 
 # =============================================================================
@@ -87,8 +87,22 @@ st.markdown("""
   --bg:#0B0E14; --panel:#141A24; --panel-2:#1A212D;
   --border:#28303D; --hairline:#1E2530;
   --ink:#E9ECF2; --ink-dim:#98A2B2; --ink-faint:#5E6A7A;
-  --accent:#3DB4F2;
+  --accent:#3DB4F2; --accent-2:#A78BFA;
+  --shadow: 0 8px 24px -8px rgba(0,0,0,0.55), 0 2px 8px -2px rgba(0,0,0,0.4);
+  --shadow-hover: 0 14px 36px -10px rgba(0,0,0,0.6), 0 4px 14px -2px rgba(61,180,242,0.12);
 }
+
+@keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes pulseDot { 0%,100% { box-shadow:0 0 0 0 rgba(74,222,128,0.55); } 70% { box-shadow:0 0 0 6px rgba(74,222,128,0); } }
+
+/* ambient background glow */
+.stApp::before {
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(680px 420px at 12% -8%, rgba(61,180,242,0.10), transparent 60%),
+    radial-gradient(620px 380px at 96% 8%, rgba(167,139,250,0.08), transparent 60%);
+}
+.block-container { position:relative; z-index:1; }
 
 /* hide Streamlit chrome, keep the sidebar toggle (collapse + expand) working */
 header[data-testid="stHeader"] { background:transparent; }
@@ -113,21 +127,43 @@ h1,h2,h3,h4 { font-family:'Space Grotesk', sans-serif; letter-spacing:-0.01em; }
 
 /* hero */
 .hero {
-  border:1px solid var(--border); border-radius:14px; padding:1.5rem 1.8rem;
-  background:linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
-  margin-bottom:1.4rem;
+  border:1px solid var(--border); border-radius:16px; padding:1.6rem 1.9rem;
+  background:linear-gradient(160deg, var(--panel) 0%, var(--panel-2) 100%);
+  box-shadow:var(--shadow);
+  margin-bottom:1.4rem; animation:fadeUp 0.5s ease both;
+  position:relative; overflow:hidden;
 }
-.hero h1 { font-size:1.75rem; font-weight:600; margin:0.55rem 0 0.3rem; color:#F4F6FB; }
-.hero p  { color:var(--ink-dim); margin:0; font-size:0.92rem; }
-.chips { display:flex; flex-wrap:wrap; gap:8px; }
+.hero::after {
+  content:""; position:absolute; top:-40%; right:-10%; width:280px; height:280px; border-radius:50%;
+  background:radial-gradient(circle, rgba(61,180,242,0.14), transparent 70%); pointer-events:none;
+}
+.hero h1 {
+  font-size:1.85rem; font-weight:700; margin:0.6rem 0 0.3rem;
+  background:linear-gradient(90deg, #F4F6FB 55%, var(--accent) 130%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+}
+.hero p  { color:var(--ink-dim); margin:0; font-size:0.93rem; }
+.chips { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
 .chip {
   font-family:'IBM Plex Mono', monospace; font-size:0.68rem; letter-spacing:0.06em;
   text-transform:uppercase; padding:4px 10px; border-radius:6px;
   background:rgba(61,180,242,0.10); border:1px solid rgba(61,180,242,0.28); color:var(--accent);
+  transition:transform 0.15s ease, border-color 0.15s ease;
+}
+.chip:hover { transform:translateY(-1px); border-color:rgba(61,180,242,0.55); }
+.live-dot {
+  display:inline-block; width:7px; height:7px; border-radius:50%; background:#4ADE80;
+  margin-right:6px; animation:pulseDot 2s infinite;
 }
 
 /* stat cards */
-.stat { border:1px solid var(--border); border-radius:12px; padding:1rem 1.15rem; background:var(--panel); height:100%; }
+.stat {
+  border:1px solid var(--border); border-radius:14px; padding:1.05rem 1.2rem; background:var(--panel);
+  height:100%; box-shadow:var(--shadow); transition:transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  animation:fadeUp 0.55s ease both; position:relative; overflow:hidden;
+}
+.stat::before { content:""; position:absolute; top:0; left:0; right:0; height:3px; background:var(--stat-c, var(--accent)); opacity:0.85; }
+.stat:hover { transform:translateY(-3px); box-shadow:var(--shadow-hover); border-color:rgba(61,180,242,0.35); }
 .stat .k { font-size:0.66rem; letter-spacing:0.09em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; margin-bottom:0.5rem; }
 .stat .v { font-family:'IBM Plex Mono', monospace; font-size:1.7rem; font-weight:600; color:#F4F6FB; line-height:1; font-variant-numeric:tabular-nums; }
 .stat .s { color:var(--ink-dim); font-size:0.72rem; margin-top:0.4rem; }
@@ -137,15 +173,20 @@ h1,h2,h3,h4 { font-family:'Space Grotesk', sans-serif; letter-spacing:-0.01em; }
 .section::before { content:""; width:3px; height:12px; border-radius:2px; background:var(--accent); }
 
 /* panel / station card */
-.panel { border:1px solid var(--border); border-radius:12px; background:var(--panel); padding:1.1rem 1.2rem; }
+.panel {
+  border:1px solid var(--border); border-radius:14px; background:var(--panel); padding:1.15rem 1.25rem;
+  box-shadow:var(--shadow); animation:fadeUp 0.55s ease both; transition:box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.panel:hover { box-shadow:var(--shadow-hover); border-color:rgba(61,180,242,0.3); }
 .st-name { font-family:'Space Grotesk', sans-serif; font-size:1.15rem; font-weight:600; color:#F4F6FB; }
 .st-when { font-family:'IBM Plex Mono', monospace; font-size:0.72rem; color:var(--ink-faint); margin-top:2px; }
 .st-aqi  { padding:3px 10px; border-radius:6px; font-size:0.72rem; font-weight:600; }
-.st-now  { font-family:'IBM Plex Mono', monospace; font-size:2rem; color:#F4F6FB; margin-top:0.5rem; font-variant-numeric:tabular-nums; }
+.st-now  { font-family:'IBM Plex Mono', monospace; font-size:2.1rem; color:#F4F6FB; margin-top:0.5rem; font-variant-numeric:tabular-nums; }
 .st-now span { font-size:0.9rem; color:var(--ink-faint); }
 
 /* note cards */
-.note { border-radius:10px; padding:0.7rem 0.95rem; margin-top:0.55rem; font-size:0.82rem; }
+.note { border-radius:10px; padding:0.7rem 0.95rem; margin-top:0.55rem; font-size:0.82rem; transition:transform 0.15s ease; }
+.note:hover { transform:translateX(2px); }
 .note b { font-weight:600; }
 .note .sub { color:var(--ink-dim); font-size:0.76rem; margin-top:2px; }
 .note.bad  { background:rgba(240,97,109,0.08);  border:1px solid rgba(240,97,109,0.35); }
@@ -153,21 +194,55 @@ h1,h2,h3,h4 { font-family:'Space Grotesk', sans-serif; letter-spacing:-0.01em; }
 .note.ok   { background:rgba(74,222,128,0.07);  border:1px solid rgba(74,222,128,0.30); color:var(--ink-dim); }
 
 /* alerts */
-.alert { display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border); border-left:3px solid #F0616D; border-radius:9px; padding:0.55rem 0.85rem; background:var(--panel); margin-bottom:7px; }
+.alert {
+  display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border);
+  border-left:3px solid #F0616D; border-radius:10px; padding:0.55rem 0.85rem; background:var(--panel);
+  margin-bottom:7px; box-shadow:0 2px 10px -4px rgba(0,0,0,0.4); transition:transform 0.15s ease, box-shadow 0.15s ease;
+}
+.alert:hover { transform:translateX(3px); box-shadow:0 4px 16px -4px rgba(240,97,109,0.25); }
 .alert .n { font-weight:500; color:var(--ink); font-size:0.86rem; }
 .alert .t { font-family:'IBM Plex Mono', monospace; color:#F0616D; font-size:0.8rem; }
 
 /* sidebar */
 [data-testid="stSidebar"] { background:var(--panel-2); border-right:1px solid var(--border); }
-.sb-h { font-family:'Space Grotesk', sans-serif; font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-dim); margin:1.1rem 0 0.5rem; }
-.ts-pill { font-family:'IBM Plex Mono', monospace; font-size:0.82rem; color:var(--accent); text-align:center; background:var(--panel); border:1px solid var(--border); padding:7px 10px; border-radius:8px; margin-top:8px; }
-.hz-row { display:flex; justify-content:space-between; font-size:0.78rem; color:var(--ink-dim); padding:2px 0; }
+.sb-h {
+  font-family:'Space Grotesk', sans-serif; font-size:0.78rem; font-weight:600; text-transform:uppercase;
+  letter-spacing:0.08em; color:var(--ink-dim); margin:1.2rem 0 0.5rem; padding-top:0.9rem;
+  border-top:1px solid var(--hairline);
+}
+.sb-h:first-of-type { border-top:none; padding-top:0; margin-top:0.2rem; }
+.ts-pill {
+  font-family:'IBM Plex Mono', monospace; font-size:0.82rem; color:var(--accent); text-align:center;
+  background:var(--panel); border:1px solid rgba(61,180,242,0.3); padding:8px 10px; border-radius:9px;
+  margin-top:8px; box-shadow:0 2px 10px -4px rgba(61,180,242,0.15);
+}
+.hz-row { display:flex; justify-content:space-between; font-size:0.78rem; color:var(--ink-dim); padding:3px 0; }
 .hz-row .val { font-family:'IBM Plex Mono', monospace; color:var(--ink); }
 
+[data-testid="stSidebar"] [data-testid="stDateInput"] input,
+[data-testid="stSidebar"] [data-testid="stSelectbox"] > div,
+[data-testid="stSidebar"] [data-baseweb="select"] > div {
+  border-radius:8px !important;
+}
+[data-testid="stSidebar"] [data-testid="stCheckbox"] label { transition:color 0.15s ease; }
+
+/* map card */
+[data-testid="stIFrame"] { border-radius:14px; overflow:hidden; box-shadow:var(--shadow); border:1px solid var(--border); }
+
+/* buttons / radios accent */
+[data-testid="stSidebar"] [role="radiogroup"] label:hover { color:var(--accent); }
+
 /* footer */
-.foot { color:var(--ink-faint); font-size:0.76rem; line-height:1.65; margin-top:0.5rem; }
+.foot {
+  color:var(--ink-faint); font-size:0.76rem; line-height:1.65; margin-top:0.5rem;
+  padding:1rem 1.1rem; border-radius:12px; background:var(--panel); border:1px solid var(--border);
+}
 .foot b { color:var(--ink-dim); }
 hr { border-color:var(--hairline); }
+
+/* section label underline glow */
+.section { position:relative; }
+.section::after { content:""; position:absolute; left:0; bottom:-6px; width:36px; height:2px; background:linear-gradient(90deg, var(--accent), transparent); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -178,7 +253,7 @@ _model = summary.get("model_name", "WA-TGCN").split(" (")[0]
 st.markdown(f"""
 <div class="hero">
   <div class="chips">
-    <span class="chip">{_model}</span>
+    <span class="chip"><span class="live-dot"></span>{_model}</span>
     <span class="chip">Wind-aware dynamic graph</span>
     <span class="chip">{summary['n_stations']} stations · Delhi</span>
   </div>
@@ -192,14 +267,14 @@ st.markdown(f"""
 # =============================================================================
 _stable = summary["rmse_by_regime"].get("Stable")
 _stats = [
-    ("Ensemble RMSE", f"{summary['rmse']:.1f}", "µg/m³ · mean over 24 h", "1.7rem"),
-    ("R² score", f"{summary['r2']:.2f}", "variance explained", "1.7rem"),
-    ("Stable-day RMSE", f"{_stable:.1f}", "µg/m³ · typical conditions", "1.7rem"),
-    ("Test period", summary["test_period"], f"{summary['test_windows_total']:,} forecast windows", "1.0rem"),
+    ("Ensemble RMSE", f"{summary['rmse']:.1f}", "µg/m³ · mean over 24 h", "1.7rem", ACCENT),
+    ("R² score", f"{summary['r2']:.2f}", "variance explained", "1.7rem", C_GOOD),
+    ("Stable-day RMSE", f"{_stable:.1f}", "µg/m³ · typical conditions", "1.7rem", C_SCENARIO),
+    ("Test period", summary["test_period"], f"{summary['test_windows_total']:,} forecast windows", "1.0rem", C_WARN),
 ]
-for col, (k, v, s, vsize) in zip(st.columns(4), _stats):
+for col, (k, v, s, vsize, c) in zip(st.columns(4), _stats):
     col.markdown(
-        f'<div class="stat"><div class="k">{k}</div>'
+        f'<div class="stat" style="--stat-c:{c};"><div class="k">{k}</div>'
         f'<div class="v" style="font-size:{vsize}">{v}</div>'
         f'<div class="s">{s}</div></div>',
         unsafe_allow_html=True,
@@ -323,21 +398,18 @@ with map_col:
         name="dark", control=False,
     ).add_to(m)
 
-    # wind coupling A(t) — under the station markers
+    # wind coupling A(t) — under the station markers, animated flow shows wind direction
     if show_wind and wind_edges is not None:
         _edges = wind_edges.get(str(frame["window_idx"]), [])[:45]
         _wmax = max((w for _, _, w in _edges), default=1.0)
         for i, j, w in _edges:
             a, b = station_lookup[i], station_lookup[j]
             rel = w / _wmax
-            pl = folium.PolyLine(
+            AntPath(
                 [[a["lat"], a["lon"]], [b["lat"], b["lon"]]],
-                color=ACCENT, weight=0.7 + 2.0 * rel, opacity=0.14 + 0.42 * rel,
-            )
-            pl.add_to(m)
-            PolyLineTextPath(
-                pl, "  ➤  ", repeat=True, offset=3.5,
-                attributes={"fill": ACCENT, "font-size": "9", "opacity": "0.55"},
+                color=ACCENT, weight=1.2 + 2.4 * rel, opacity=0.25 + 0.55 * rel,
+                dash_array=[8, 16], delay=1300 - 700 * rel,
+                pulse_color="#EAF7FF",
             ).add_to(m)
 
     for st_meta in stations:
