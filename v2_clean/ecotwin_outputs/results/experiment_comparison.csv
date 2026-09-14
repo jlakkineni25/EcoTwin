@@ -1,0 +1,5 @@
+name,hidden,gru,pool,delta,params,best_val,rmse,mae,r2,rmse_1h,rmse_24h
+D_delta,32,1,last,True,13016,0.39133,66.71,43.58,0.5613,30.84,70.92
+B_smaller,32,1,last,False,13016,0.40379,64.83,43.54,0.5856,40.4,70.14
+A_baseline,64,2,last,False,73496,0.40428,64.51,43.15,0.5898,38.35,69.1
+C_attnpool,32,1,attention,False,13049,0.41167,66.99,46.09,0.5575,43.16,69.53
