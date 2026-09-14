@@ -1,0 +1,18 @@
+{
+  "in_features": 14,
+  "hidden_dim": 32,
+  "gru_layers": 1,
+  "attn_heads": 4,
+  "forecast_horizon": 24,
+  "n_stations": 37,
+  "dropout": 0.2,
+  "input_window": 48,
+  "log_target": true,
+  "seeds": [
+    42,
+    7,
+    123,
+    2024,
+    999
+  ]
+}

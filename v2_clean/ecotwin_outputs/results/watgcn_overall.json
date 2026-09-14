@@ -1,0 +1,8 @@
+{
+  "model": "WA-TGCN centralised",
+  "rmse": 65.5847,
+  "mae": 46.3322,
+  "r2": 0.5759,
+  "best_epoch": 2,
+  "best_val_loss": 0.425223
+}

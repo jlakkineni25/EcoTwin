@@ -1,0 +1,38 @@
+Station,RMSE,MAE,R2
+Lodhi Road,46.88,34.85,0.4792
+Aya Nagar,47.53,34.47,0.358
+Sri Aurobindo Marg,48.29,35.32,0.5367
+IGI Airport (T3),48.52,37.07,0.343
+Najafgarh,52.32,38.42,0.3872
+Major Dhyan Chand National Stadium,53.37,41.41,0.5919
+Pusa DPCC,54.34,41.1,0.5803
+Pusa IITM,55.33,43.19,0.4964
+Alipur,57.3,43.06,0.4946
+Jawaharlal Nehru Stadium,57.51,42.59,0.6103
+CRRI Mathura Road,58.12,42.96,0.4552
+Sirifort,58.95,40.41,0.6288
+Mandir Marg,59.7,44.78,0.4151
+NSIT Dwarka,59.82,42.23,0.1738
+Shadipur,59.88,44.93,0.2936
+Dr. Karni Singh Shooting Range,60.41,43.15,0.5934
+Chandni Chowk,61.52,43.84,0.6233
+Dwarka-Sector 8,62.74,45.12,0.5923
+Okhla Phase-2,63.37,46.4,0.6103
+North Campus,64.55,45.82,0.5574
+Burari Crossing,65.14,45.91,0.5161
+Narela,65.46,46.21,0.5546
+Patparganj,66.65,47.67,0.6075
+Punjabi Bagh,68.59,49.95,0.5875
+Sonia Vihar,71.12,49.02,0.5516
+Ashok Vihar,72.33,50.94,0.6054
+DTU,72.44,49.02,0.5849
+ITO,72.84,46.93,0.5201
+Bawana,74.17,53.24,0.549
+Wazirpur,74.52,53.61,0.6079
+Jahangirpuri,74.6,53.73,0.5975
+Vivek Vihar,74.77,53.84,0.582
+Rohini,75.39,54.12,0.6123
+R K Puram,81.61,54.76,0.5133
+Mundka,81.62,56.94,0.5418
+Anand Vihar,86.07,59.81,0.5532
+Nehru Nagar,86.84,57.46,0.5424
