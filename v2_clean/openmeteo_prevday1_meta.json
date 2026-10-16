@@ -1,0 +1,9 @@
+{
+  "source": "previous-runs-api.open-meteo.com, wind_*_previous_day1",
+  "lead": "about 1 day",
+  "start": "2024-01-01 00:00:00",
+  "end": "2026-04-10 00:00:00",
+  "timezone": "Asia/Kolkata",
+  "filled_fraction": 0.02253902916520255,
+  "convention": "u=-ws*sin(wd), v=-ws*cos(wd)"
+}
