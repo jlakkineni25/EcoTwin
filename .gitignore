@@ -10,6 +10,9 @@ v2_clean/cpcb_stations.xlsx
 !v2_clean/static_adj_matrix.npy
 !v2_clean/v2_clim_grid.npy
 
+# --- per-seed training progress scratch files (rewritten every run) ---
+*_progress.json
+
 # --- jupyter / python cruft ---
 .ipynb_checkpoints/
 *.ipynb_checkpoints/

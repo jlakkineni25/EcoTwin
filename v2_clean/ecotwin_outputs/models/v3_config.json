@@ -1,5 +1,5 @@
 {
-  "in_features": 23,
+  "in_features": 26,
   "hidden_dim": 32,
   "gru_layers": 1,
   "attn_heads": 4,
@@ -8,7 +8,7 @@
   "dropout": 0.2,
   "input_window": 48,
   "gcn_hops": 2,
-  "n_fut": 7,
+  "n_fut": 10,
   "feature_cols": [
     "pm2.5",
     "pm10",
@@ -18,6 +18,9 @@
     "o3",
     "rh",
     "at",
+    "u_wind",
+    "v_wind",
+    "wspd",
     "pm_roll6_mean",
     "pm_roll6_std",
     "pm_roll24_mean",
@@ -58,5 +61,6 @@
     999,
     2025,
     77
-  ]
+  ],
+  "restored": "rebuilt from the original recipe after the v3b run overwrote this file"
 }
