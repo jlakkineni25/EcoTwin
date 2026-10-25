@@ -21,3 +21,9 @@ __pycache__/
 
 # --- local tooling ---
 .claude/
+
+# --- paper drafts and office/backup files (kept locally, not part of the code repo) ---
+/EcoTwin_Research_Paper*
+~$*
+*.bundle
+*.bak
