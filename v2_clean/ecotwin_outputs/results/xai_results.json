@@ -1,0 +1,102 @@
+{
+  "sample_windows": 400,
+  "sample_rmse": 61.17853546142578,
+  "test_rmse_full": 60.91880322148081,
+  "attention_mass_by_block": {
+    "last 6 h": 0.13158975541591644,
+    "hours 7-24 back": 0.374880850315094,
+    "hours 25-48 back": 0.49352937936782837
+  },
+  "blank_block_rmse_increase": {
+    "last 6 h": 10.944259643554688,
+    "hours 7-24 back": 12.688674926757812,
+    "hours 25-48 back": 10.8419189453125
+  },
+  "shapley_share_percent": {
+    "PM2.5 history": 35.20480161392787,
+    "Other pollutants": -8.317695567218873,
+    "Weather (T, RH)": 34.57188491632724,
+    "Wind": 6.953841740211499,
+    "City context": 18.280496550078126,
+    "Calendar (input)": 13.306670746674133
+  },
+  "rmse_all_groups": 61.178533721242864,
+  "rmse_no_groups": 94.6483881680639,
+  "top_edges": [
+    {
+      "receiver": "Burari Crossing",
+      "sender": "Alipur",
+      "share_percent": 1.706918095336862
+    },
+    {
+      "receiver": "NSIT Dwarka",
+      "sender": "Mundka",
+      "share_percent": 1.4157130922884618
+    },
+    {
+      "receiver": "Najafgarh",
+      "sender": "NSIT Dwarka",
+      "share_percent": 1.3401800694166375
+    },
+    {
+      "receiver": "Jahangirpuri",
+      "sender": "Alipur",
+      "share_percent": 1.184577381250255
+    },
+    {
+      "receiver": "Mundka",
+      "sender": "Bawana",
+      "share_percent": 1.1669912814262813
+    },
+    {
+      "receiver": "Alipur",
+      "sender": "Narela",
+      "share_percent": 1.0763909834602834
+    },
+    {
+      "receiver": "ITO",
+      "sender": "Chandni Chowk",
+      "share_percent": 1.0665443023743473
+    },
+    {
+      "receiver": "Vivek Vihar",
+      "sender": "Anand Vihar",
+      "share_percent": 0.9316928241751226
+    },
+    {
+      "receiver": "Bawana",
+      "sender": "Narela",
+      "share_percent": 0.9154396001560823
+    },
+    {
+      "receiver": "CRRI Mathura Road",
+      "sender": "Nehru Nagar",
+      "share_percent": 0.89628245244215
+    },
+    {
+      "receiver": "Anand Vihar",
+      "sender": "Vivek Vihar",
+      "share_percent": 0.8754313059485291
+    },
+    {
+      "receiver": "Nehru Nagar",
+      "sender": "CRRI Mathura Road",
+      "share_percent": 0.8433865099259888
+    },
+    {
+      "receiver": "Major Dhyan Chand National Stadium",
+      "sender": "ITO",
+      "share_percent": 0.824927009647741
+    },
+    {
+      "receiver": "IGI Airport (T3)",
+      "sender": "Pusa DPCC",
+      "share_percent": 0.7921005585286609
+    },
+    {
+      "receiver": "IGI Airport (T3)",
+      "sender": "Shadipur",
+      "share_percent": 0.7825959545997727
+    }
+  ]
+}
