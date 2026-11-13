@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useTwinStore } from '../../store/useTwinStore';
 import { Wind, PlayCircle, Menu, X } from 'lucide-react';
 
-export const StoryNav: React.FC = () => {
+interface Props {
+  onSwitchToCitizen?: () => void;
+}
+
+export const StoryNav: React.FC<Props> = ({ onSwitchToCitizen }) => {
   const [activeSection, setActiveSection] = useState('crisis');
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -105,8 +109,19 @@ export const StoryNav: React.FC = () => {
           })}
         </nav>
 
-        {/* Top Right Actions: Guided Demo Trigger & Mobile Menu Button */}
+        {/* Top Right Actions: Citizen View, Guided Demo Trigger & Mobile Menu Button */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {onSwitchToCitizen && (
+            <button
+              onClick={onSwitchToCitizen}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 transition-all cursor-pointer shadow-sm shadow-emerald-500/10"
+              title="Return to Citizen Air Quality Companion"
+            >
+              <span>🌱</span>
+              <span className="hidden sm:inline">Citizen View</span>
+            </button>
+          )}
+
           <button
             onClick={() => {
               startDemo();
@@ -142,6 +157,20 @@ export const StoryNav: React.FC = () => {
       {mobileMenuOpen && (
         <div className="md:hidden px-4 pt-3 pb-4 bg-[#0B0E14]/98 border-b border-[#232A3B] backdrop-blur-xl animate-fade-in shadow-2xl">
           <div className="flex flex-col gap-1.5">
+            {onSwitchToCitizen && (
+              <button
+                onClick={() => {
+                  onSwitchToCitizen();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-mono tracking-wider font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 mb-1 cursor-pointer"
+              >
+                <span>🌱 Citizen Air Dashboard</span>
+                <span className="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-300">
+                  Switch
+                </span>
+              </button>
+            )}
             {navItems.map((item) => {
               const isActive = activeSection === item.id;
               return (
