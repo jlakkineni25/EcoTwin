@@ -18,21 +18,57 @@
     }
   },
   "Mumbai": {
-    "stations": 27,
+    "stations": 21,
     "hours": 5305,
-    "pairs_within_12km": 103,
-    "edges_per_hour": 104.36286522148916,
-    "mean_pm25": 46.53911590576172,
-    "pm25_observed_share": 0.8364226620588543,
+    "pairs_within_12km": 53,
+    "edges_per_hour": 53.85956644674835,
+    "mean_pm25": 43.09226989746094,
+    "pm25_observed_share": 0.8651586553565819,
     "imputed_share": {
-      "pm2.5": 0.164,
-      "pm10": 0.184,
-      "no2": 0.181,
-      "so2": 0.276,
-      "co": 0.264,
-      "o3": 0.253,
-      "rh": 0.341,
-      "at": 0.329
+      "pm2.5": 0.135,
+      "pm10": 0.133,
+      "no2": 0.152,
+      "so2": 0.234,
+      "co": 0.18,
+      "o3": 0.151,
+      "rh": 0.116,
+      "at": 0.117
+    }
+  },
+  "Ahmedabad": {
+    "stations": 9,
+    "hours": 5305,
+    "pairs_within_12km": 23,
+    "edges_per_hour": 23.73722902921772,
+    "mean_pm25": 52.651546478271484,
+    "pm25_observed_share": 0.8819981149858624,
+    "imputed_share": {
+      "pm2.5": 0.118,
+      "pm10": 0.118,
+      "no2": 0.119,
+      "so2": 0.12,
+      "co": 0.12,
+      "o3": 0.12,
+      "rh": 0.119,
+      "at": 0.12
+    }
+  },
+  "Patna": {
+    "stations": 6,
+    "hours": 5305,
+    "pairs_within_12km": 9,
+    "edges_per_hour": 8.92177191328935,
+    "mean_pm25": 58.93235778808594,
+    "pm25_observed_share": 0.8630851398052152,
+    "imputed_share": {
+      "pm2.5": 0.137,
+      "pm10": 0.138,
+      "no2": 0.137,
+      "so2": 0.142,
+      "co": 0.146,
+      "o3": 0.141,
+      "rh": 0.136,
+      "at": 0.136
     }
   }
 }

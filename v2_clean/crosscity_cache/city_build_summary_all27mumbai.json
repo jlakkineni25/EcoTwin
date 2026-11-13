@@ -1,0 +1,38 @@
+{
+  "Kolkata": {
+    "stations": 10,
+    "hours": 5305,
+    "pairs_within_12km": 37,
+    "edges_per_hour": 37.31347785108388,
+    "mean_pm25": 66.14716339111328,
+    "pm25_observed_share": 0.8913289349670123,
+    "imputed_share": {
+      "pm2.5": 0.109,
+      "pm10": 0.109,
+      "no2": 0.109,
+      "so2": 0.113,
+      "co": 0.118,
+      "o3": 0.109,
+      "rh": 0.116,
+      "at": 0.109
+    }
+  },
+  "Mumbai": {
+    "stations": 27,
+    "hours": 5305,
+    "pairs_within_12km": 103,
+    "edges_per_hour": 104.36286522148916,
+    "mean_pm25": 46.53911590576172,
+    "pm25_observed_share": 0.8364226620588543,
+    "imputed_share": {
+      "pm2.5": 0.164,
+      "pm10": 0.184,
+      "no2": 0.181,
+      "so2": 0.276,
+      "co": 0.264,
+      "o3": 0.253,
+      "rh": 0.341,
+      "at": 0.329
+    }
+  }
+}
