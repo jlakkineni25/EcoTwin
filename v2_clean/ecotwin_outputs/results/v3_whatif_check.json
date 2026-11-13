@@ -1,0 +1,87 @@
+{
+  "baseline_mean": 124.85183715820312,
+  "windows": 300,
+  "summary": {
+    "wind_x2|both": {
+      "mean_change": -7.984685897827148,
+      "pct_windows_up": 22.0,
+      "by_regime": {
+        "calm": 0.6081007122993469,
+        "breezy": -9.173868179321289,
+        "windy": -15.170536994934082
+      }
+    },
+    "wind_x2|input": {
+      "mean_change": 13.599135398864746,
+      "pct_windows_up": 96.0,
+      "by_regime": {
+        "calm": 18.140687942504883,
+        "breezy": 12.428963661193848,
+        "windy": 10.326909065246582
+      }
+    },
+    "wind_x2|future": {
+      "mean_change": -19.117206573486328,
+      "pct_windows_up": 0.0,
+      "by_regime": {
+        "calm": -15.314726829528809,
+        "breezy": -19.19474220275879,
+        "windy": -22.73259735107422
+      }
+    },
+    "wind_nw|both": {
+      "mean_change": -0.9071487188339233,
+      "pct_windows_up": 45.666666666666664,
+      "by_regime": {
+        "calm": -2.2616264820098877,
+        "breezy": -0.48900511860847473,
+        "windy": 0.0016460606129840016
+      }
+    },
+    "wind_nw|input": {
+      "mean_change": -0.1222246065735817,
+      "pct_windows_up": 48.66666666666667,
+      "by_regime": {
+        "calm": -0.8318535685539246,
+        "breezy": 0.1737622320652008,
+        "windy": 0.27925172448158264
+      }
+    },
+    "wind_nw|future": {
+      "mean_change": -0.5565577149391174,
+      "pct_windows_up": 51.0,
+      "by_regime": {
+        "calm": -1.2879505157470703,
+        "breezy": -0.5412943363189697,
+        "windy": 0.13850906491279602
+      }
+    },
+    "wind_rev|both": {
+      "mean_change": -5.347378253936768,
+      "pct_windows_up": 41.333333333333336,
+      "by_regime": {
+        "calm": -11.176390647888184,
+        "breezy": -3.0808074474334717,
+        "windy": -1.8897148370742798
+      }
+    },
+    "wind_rev|input": {
+      "mean_change": -7.841701030731201,
+      "pct_windows_up": 31.333333333333336,
+      "by_regime": {
+        "calm": -12.089288711547852,
+        "breezy": -6.973394393920898,
+        "windy": -4.561809539794922
+      }
+    },
+    "wind_rev|future": {
+      "mean_change": 4.6641340255737305,
+      "pct_windows_up": 72.66666666666667,
+      "by_regime": {
+        "calm": 1.987699270248413,
+        "breezy": 6.083673000335693,
+        "windy": 5.884063243865967
+      }
+    }
+  }
+}
