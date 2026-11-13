@@ -18,6 +18,7 @@ import { StoryTwinIntro } from './components/story/StoryTwinIntro';
 import { StoryTwinStudio } from './components/story/StoryTwinStudio';
 import { StoryEvaluations } from './components/story/StoryEvaluations';
 import { PanelWalkthrough } from './components/walkthrough/PanelWalkthrough';
+import { CitizenExperience } from './components/citizen/CitizenExperience';
 import { AlertCircle, Wind, Command, X } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -30,6 +31,7 @@ export const App: React.FC = () => {
 
   const {
     selectedStationId,
+    setSelectedStationId,
     currentWindowIdx,
     setCurrentWindowIdx,
     togglePlaying,
@@ -37,13 +39,17 @@ export const App: React.FC = () => {
     isDemoActive,
     startDemo,
     stopDemo,
-    setActiveStudioView
+    setActiveStudioView,
+    compassAngle,
   } = useTwinStore();
 
   const isLoading = loadingStations || loadingSummary || loadingPlayback;
   const isError = errStations || errPlayback;
 
   const totalWindows = playback?.length || 970;
+
+  // View Mode: 'citizen' (Citizen-first default) vs 'research' (Full WA-TGCN research platform)
+  const [viewMode, setViewMode] = useState<'citizen' | 'research'>('citizen');
 
   // Experimental Hero Variant: 'cinematic' (Refokus/Cula) vs 'datastory' (The Pudding)
   const [heroVariant, setHeroVariant] = useState<'cinematic' | 'datastory'>('cinematic');
@@ -170,10 +176,34 @@ export const App: React.FC = () => {
     );
   }
 
+  // Direction B: Citizen-First Experience by Default
+  if (viewMode === 'citizen') {
+    return (
+      <CitizenExperience
+        stations={stations}
+        forecasts={currentFrame.stations}
+        summary={summary}
+        timestamp={currentFrame.timestamp}
+        selectedStationId={selectedStationId}
+        onSelectStation={(id) => setSelectedStationId(id)}
+        compassAngle={compassAngle}
+        onExploreResearch={() => {
+          setViewMode('research');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0B0E14] text-[#FFFDF8] font-sans selection:bg-[#ECC138]/30 selection:text-[#FFFDF8]">
-      {/* Top Story Navigation */}
-      <StoryNav />
+      {/* Top Story Navigation with Citizen View Switcher */}
+      <StoryNav
+        onSwitchToCitizen={() => {
+          setViewMode('citizen');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
 
       {/* Chapter 1: The Crisis (Experimental Variant Switcher) */}
       {heroVariant === 'cinematic' ? (
