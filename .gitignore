@@ -34,3 +34,30 @@ frontend/dist/
 node_modules/
 dist/
 *.zip
+
+# --- generated caches and live outputs (rebuilt by notebooks 23-29, 33; never edited by hand) ---
+v2_clean/crosscity_cache/hourly_*.pkl
+v2_clean/crosscity_cache/era5_*.pkl
+v2_clean/crosscity_cache/era5tr_*.pkl
+v2_clean/crosscity_cache/era_*.pkl
+v2_clean/crosscity_cache/city_*.npz
+v2_clean/crosscity_cache/india_locations.json
+v2_clean/regional_cache/
+v2_clean/live_cache/
+v2_clean/live_export/
+
+# --- raw CPCB downloads (portal terms: do not redistribute) ---
+Raw Sets Regional/
+
+# --- superseded backup of the v1 dashboard export (regenerate with notebook 08) ---
+v2_clean/dashboard_export_v1/
+
+# --- scratch outputs from smoke tests ---
+smoke*/
+
+# --- experiment checkpoints (negative or intermediate results; only the final dyn_adv models are kept in the repo) ---
+v2_clean/ecotwin_outputs/models/watgcn_v4*.pt
+v2_clean/ecotwin_outputs/models/watgcn_v5none_*.pt
+v2_clean/ecotwin_outputs/models/watgcn_v5stat_*.pt
+v2_clean/ecotwin_outputs/models/watgcn_v6*.pt
+v2_clean/ecotwin_outputs/models/watgcn_v7*.pt
