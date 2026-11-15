@@ -567,7 +567,7 @@ export const GeoMonitoringMap: React.FC<GeoMonitoringMapProps> = ({
       const markerColor = catCfg.color;
 
       const el = document.createElement('div');
-      el.className = 'cursor-pointer group flex flex-col items-center select-none relative';
+      el.className = 'cursor-pointer group flex flex-col items-center select-none'; // no "relative": it overrides maplibre's position:absolute and stacks all markers
 
       // NOTE: Strictly NO "ACTIVE" bouncing badge as per instructions.
       // Clean selected highlight: double glowing ring and elevation.
@@ -915,7 +915,7 @@ export const GeoMonitoringMap: React.FC<GeoMonitoringMapProps> = ({
 
   return (
     <div
-      className={`relative w-full h-full min-h-[360px] sm:min-h-[420px] lg:min-h-[480px] bg-[#07090D] overflow-hidden rounded-2xl border border-[#232A3B] select-none ${className}`}
+      className={`relative w-full h-full min-h-[360px] sm:min-h-[420px] lg:min-h-[480px] bg-[#07090D] overflow-hidden rounded-2xl border border-[#232A3B] select-none ${currentZoom < 11.3 ? 'map-labels-off' : ''} ${className}`}
     >
       {/* MapLibre DOM Node */}
       <div ref={mapContainer} className="absolute inset-0 w-full h-full z-0" />
