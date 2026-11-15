@@ -285,7 +285,7 @@ export const StoryChallenge: React.FC = () => {
 
         {/* 5. Section Footer with Navigation Cue */}
         <div className="pt-6 border-t border-[#232A3B] flex flex-wrap items-center justify-between gap-4 text-xs font-mono text-slate-500">
-          <div>Continuous CAAQMS Winter Evaluation (Jan 2024 – Apr 2026)</div>
+          <div>Continuous CAAQMS Winter Airshed Evaluation</div>
           
           <button
             onClick={scrollToDilemma}

@@ -821,7 +821,7 @@ export const StoryDataHero: React.FC<StoryDataHeroProps> = ({
                       <div className="py-1 rounded bg-[#FACC15]/15 border border-[#FACC15]/30 text-[#FACC15]">Moderate (61–90)</div>
                       <div className="py-1 rounded bg-[#FB923C]/15 border border-[#FB923C]/30 text-[#FB923C]">Poor (91–120)</div>
                       <div className="py-1 rounded bg-[#F87171]/15 border border-[#F87171]/30 text-[#F87171]">Very Poor (121–250)</div>
-                      <div className="py-1 rounded bg-[#DC2626]/15 border border-[#DC2626]/30 text-[#F87171] font-bold">Severe (&gt;250)</div>
+                      <div className="py-1 rounded bg-[#DC2626]/20 border border-[#DC2626]/40 text-[#EF4444] font-bold">Severe (&gt;250)</div>
                     </div>
                   </div>
                 )}

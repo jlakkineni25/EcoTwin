@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTwinStore } from '../../store/useTwinStore';
+import { EcoTwinLogo } from '../common/EcoTwinLogo';
 import { Wind, PlayCircle, Menu, X } from 'lucide-react';
 
 interface Props {
@@ -72,21 +73,23 @@ export const StoryNav: React.FC<Props> = ({ onSwitchToCitizen }) => {
       />
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
         {/* Brand */}
-        <div 
-          onClick={() => scrollTo('hero')}
-          className="flex items-center gap-2.5 cursor-pointer group select-none"
-        >
-          <div className="w-8 h-8 rounded-lg bg-[#ECC138] flex items-center justify-center text-[#0B0E14] font-bold shadow-md shadow-[#ECC138]/20 group-hover:scale-105 transition-transform">
-            <Wind className="w-4 h-4 text-[#0B0E14]" />
-          </div>
-          <div>
-            <span className="font-display font-extrabold tracking-wider text-white text-base">
-              ECO<span className="text-[#ECC138]">TWIN</span>
-            </span>
-            <span className="text-[10px] text-slate-400 ml-2 font-mono uppercase tracking-widest hidden sm:inline">
-              WA-TGCN Air Quality Twin
-            </span>
-          </div>
+        <div className="flex items-center gap-3">
+          <EcoTwinLogo
+            size="md"
+            interactive
+            onClick={() => {
+              const hero = document.getElementById('hero');
+              if (hero) {
+                hero.scrollIntoView({ behavior: 'smooth' });
+              } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+            ariaLabel="EcoTwin Research Platform - Scroll to top"
+          />
+          <span className="text-[10px] text-slate-400 font-mono uppercase tracking-widest hidden lg:inline border-l border-[#232A3B] pl-3 py-1">
+            WA-TGCN Air Quality Twin
+          </span>
         </div>
 
         {/* Desktop Minimalist Pill Navigation */}
@@ -125,7 +128,8 @@ export const StoryNav: React.FC<Props> = ({ onSwitchToCitizen }) => {
           <button
             onClick={() => {
               startDemo();
-              scrollTo('twin');
+              const target = document.getElementById('twin-studio') || document.getElementById('twin');
+              target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
             className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-mono font-bold uppercase transition-all shadow-md cursor-pointer ${
               isDemoActive

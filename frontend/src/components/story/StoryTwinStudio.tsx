@@ -155,7 +155,7 @@ export const StoryTwinStudio: React.FC<Props> = ({
     <section
       id="twin-studio"
       ref={ref}
-      className="relative min-h-screen py-16 sm:py-20 px-4 sm:px-6 lg:px-10 bg-[#0B0E14] text-white flex flex-col justify-between border-t border-[#232A3B]"
+      className="relative min-h-screen py-8 sm:py-10 lg:py-12 px-3 sm:px-5 lg:px-8 bg-[#0B0E14] text-white flex flex-col justify-between border-t border-[#232A3B] overflow-x-clip"
     >
       <div className="max-w-[1440px] mx-auto w-full">
         {/* Title Header & Command Bar */}
@@ -284,7 +284,7 @@ export const StoryTwinStudio: React.FC<Props> = ({
                 forecasts={currentFrame.stations}
                 windEdgesMap={windEdges}
                 windowIdx={currentFrame.window_idx}
-                className="h-[460px] sm:h-[540px] lg:h-[620px] xl:h-[680px]"
+                className="h-[420px] sm:h-[480px] md:h-[520px] lg:h-[560px] xl:h-[620px] 2xl:h-[680px]"
                 onToggleExpand={() => setMaximizeMode(maximizeMode === 'map' ? 'split' : 'map')}
                 isExpanded={maximizeMode === 'map'}
               />
@@ -301,7 +301,7 @@ export const StoryTwinStudio: React.FC<Props> = ({
               }`}
             >
               {/* Flight-Deck Inspector Card with Strict Containment */}
-              <div className="rounded-2xl bg-[#121620] border border-[#232A3B] shadow-2xl flex flex-col h-[500px] sm:h-[560px] lg:h-[620px] xl:h-[680px] overflow-hidden w-full max-w-full">
+              <div className="rounded-2xl bg-[#121620] border border-[#232A3B] shadow-2xl flex flex-col h-[440px] sm:h-[480px] md:h-[520px] lg:h-[560px] xl:h-[620px] 2xl:h-[680px] overflow-hidden w-full max-w-full">
                 {/* Persistent Station Flight-Deck Header (Visible across all tabs) */}
                 <div className="p-3 sm:p-4 border-b border-[#232A3B] bg-[#0B0E14] flex items-center justify-between gap-3 shrink-0">
                   <div className="min-w-0 flex-1">

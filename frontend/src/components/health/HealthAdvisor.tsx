@@ -339,7 +339,7 @@ export const HealthAdvisor: React.FC<Props> = ({
 
           {/* Horizontal Hourly Cells with Icons */}
           <div className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[#232A3B] w-full max-w-full">
-            <div className={`${isEmbedded ? 'min-w-[540px]' : 'min-w-[760px]'} flex items-center justify-between gap-1.5`}>
+            <div className={`${isEmbedded ? 'min-w-[420px]' : 'min-w-[760px]'} flex items-center justify-between gap-1.5`}>
               {hourlyData.slice(0, 10).map((h, i) => (
                 <div
                   key={i}
@@ -373,7 +373,7 @@ export const HealthAdvisor: React.FC<Props> = ({
             </div>
 
             {/* Golden Spline Curve Graphic */}
-            <div className={`${isEmbedded ? 'min-w-[540px]' : 'min-w-[760px]'} h-[65px] relative -mt-3`}>
+            <div className={`${isEmbedded ? 'min-w-[420px]' : 'min-w-[760px]'} h-[65px] relative -mt-3`}>
               <svg className="w-full h-full overflow-visible" viewBox="0 0 840 65">
                 <defs>
                   <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">

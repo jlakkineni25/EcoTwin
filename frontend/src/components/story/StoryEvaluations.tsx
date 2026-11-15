@@ -18,7 +18,9 @@ import {
   Layers,
   ChevronDown,
   Sparkles,
-  Server
+  Server,
+  Globe,
+  Info
 } from 'lucide-react';
 import { asset } from '../../utils/paths';
 
@@ -29,7 +31,7 @@ interface Props {
 
 export const StoryEvaluations: React.FC<Props> = ({ summary, modelCard }) => {
   const { ref, isInView } = useInView({ threshold: 0.1 });
-  const { startDemo } = useTwinStore();
+  const { startDemo, setSelectedCityId } = useTwinStore();
   const [showTable, setShowTable] = useState<boolean>(true);
 
   const scrollToTwin = () => {
@@ -147,6 +149,43 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, modelCard }) => {
             <span className="text-xs font-mono text-slate-400">
               Evaluated on {verifiedStats.testWindows.toLocaleString()} held-out windows
             </span>
+          </div>
+
+          {/* Metric Guide: Plain Language Primer for Evaluators & Technical Visitors */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0B0E14] border border-[#232A3B] grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="flex items-start gap-2.5">
+              <span className="text-base shrink-0">🎯</span>
+              <div>
+                <span className="font-bold text-[#ECC138] uppercase font-mono block text-[11px]">
+                  RMSE (Root Mean Squared Error)
+                </span>
+                <span className="text-slate-300 leading-snug block mt-0.5">
+                  Penalizes large forecast errors heavily. Vital for environmental alerts during sudden winter smog spikes.
+                </span>
+              </div>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <span className="text-base shrink-0">📏</span>
+              <div>
+                <span className="font-bold text-[#38BDF8] uppercase font-mono block text-[11px]">
+                  MAE (Mean Absolute Error)
+                </span>
+                <span className="text-slate-300 leading-snug block mt-0.5">
+                  Average expected error magnitude in µg/m³ across daily forecasting operations.
+                </span>
+              </div>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <span className="text-base shrink-0">📊</span>
+              <div>
+                <span className="font-bold text-[#10B981] uppercase font-mono block text-[11px]">
+                  R² (Variance Explained)
+                </span>
+                <span className="text-slate-300 leading-snug block mt-0.5">
+                  Proportion of natural particulate fluctuations successfully captured by the model (1.0 = perfect prediction).
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Asymmetrical 3-Metric Heroic Display + Horizon Error Growth Canvas */}
@@ -414,7 +453,7 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, modelCard }) => {
                 {mc.latency_ms_per_model.toFixed(2)} ms
               </div>
               <p className="text-xs sm:text-[13px] text-slate-300 font-normal leading-relaxed">
-                About {mc.latency_ms_per_model.toFixed(2)} ms per model per window on a laptop GPU; a forecast for all 37 stations takes a few milliseconds.
+                About {mc.latency_ms_per_model.toFixed(2)} ms per model per window on a laptop GPU (5-seed ensemble ~1.55 ms); a complete 24h forecast across all 37 stations takes under 3 milliseconds.
               </p>
             </div>
 
@@ -484,16 +523,93 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, modelCard }) => {
               </table>
             </div>
           )}
+
+          {/* Cross-City Generalisation Transfer Ladder */}
+          <div className="mt-8 p-5 sm:p-6 rounded-2xl bg-[#0B0E14] border border-[#232A3B] shadow-2xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#232A3B]">
+              <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-slate-400">
+                <Globe className="w-4 h-4 text-[#38BDF8]" />
+                <span className="font-bold text-white">Cross-City Generalisation & Transfer Benchmark</span>
+              </div>
+              <span className="text-[11px] font-mono text-[#38BDF8]">
+                Delhi-Trained WA-TGCN Evaluated Across Indian Megacities
+              </span>
+            </div>
+
+            <p className="text-xs sm:text-[13px] text-slate-300 font-light leading-relaxed">
+              To evaluate whether physics-grounded wind-aware spatiotemporal representations generalize beyond Delhi's NCT airshed, the Delhi-trained WA-TGCN checkpoints were tested across Kolkata, Mumbai, Ahmedabad, and Patna without station-specific architectural changes:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { city: 'Kolkata', cid: 'kolkata', stns: 10, persist: 44.60, zeroShot: 31.22, fewShot: 30.92, gain: '+30.7%' },
+                { city: 'Ahmedabad', cid: 'ahmedabad', stns: 9, persist: 35.67, zeroShot: 29.16, fewShot: 26.03, gain: '+27.0%' },
+                { city: 'Mumbai', cid: 'mumbai', stns: 21, persist: 33.13, zeroShot: 28.90, fewShot: 26.20, gain: '+20.9%' },
+                { city: 'Patna', cid: 'patna', stns: 6, persist: 39.25, zeroShot: 32.37, fewShot: 30.14, gain: '+23.2%' },
+              ].map((item) => (
+                <div
+                  key={item.city}
+                  className="p-3.5 rounded-xl bg-[#121620] border border-[#232A3B] hover:border-[#38BDF8]/60 transition-colors group cursor-pointer"
+                  onClick={() => {
+                    setSelectedCityId(item.cid);
+                    scrollToTwin();
+                  }}
+                  title={`View ${item.city} on the Geographic Map`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-display font-bold text-white text-sm group-hover:text-[#38BDF8] transition-colors">
+                      {item.city}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#0B0E14] text-[#38BDF8] text-[10px] font-mono font-bold">
+                      {item.gain}
+                    </span>
+                  </div>
+                  <div className="space-y-1 font-mono text-[11px]">
+                    <div className="flex justify-between text-slate-400">
+                      <span>Monitors:</span>
+                      <span className="text-white">{item.stns} CAAQMS</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Zero-Shot RMSE:</span>
+                      <span className="text-[#38BDF8] font-bold">{item.zeroShot} µg/m³</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Persistence:</span>
+                      <span className="text-slate-500">{item.persist} µg/m³</span>
+                    </div>
+                  </div>
+                  <div className="mt-2.5 pt-2 border-t border-[#232A3B]/60 text-[10px] text-slate-400 flex items-center justify-between group-hover:text-slate-200">
+                    <span>Inspect on Map</span>
+                    <ArrowRight className="w-3 h-3 text-[#38BDF8] group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Scientific Transparency Callout */}
+            <div className="p-3.5 sm:p-4 rounded-xl bg-[#121620]/90 border border-[#232A3B] text-xs font-mono text-slate-300 space-y-1.5">
+              <div className="text-[11px] font-bold text-[#38BDF8] flex items-center gap-1.5 uppercase tracking-wider">
+                <Info className="w-3.5 h-3.5" />
+                <span>Methodological Details on Cross-City Evaluation</span>
+              </div>
+              <p className="text-[11px] text-slate-300 font-sans leading-relaxed">
+                • <b>Transfer Drivers:</b> The Delhi-trained WA-TGCN checkpoint outperformed persistence across all 4 evaluated megacities (+20.9% to +30.7% RMSE reduction). Ablation testing in Notebook 26 reveals that transfer gains were driven primarily by generalized temporal representations (recurrent GRU and self-attention), while spatial wind graphs were tuned to Delhi’s dense sensor grid.
+              </p>
+              <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
+                • <b>Geographic Scope:</b> Zero-shot and few-shot transfer was experimentally evaluated on 4 basins (Kolkata, Mumbai, Ahmedabad, Patna). Additional cities in EcoTwin represent active continuous CAAQMS monitoring hubs in the unified national registry.
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* 7. Section Footer: Academic Credentials & Return Action */}
+        {/* 7. Section Footer: Platform Attribution & Return Action */}
         <div className="pt-8 border-t border-[#232A3B] flex flex-wrap items-center justify-between gap-6 text-xs font-mono text-slate-500">
           <div className="space-y-1">
             <div className="text-slate-400 font-semibold">
-              Department of Computer Science & Engineering · Amrita Vishwa Vidyapeetham · Team 86
+              EcoTwin Spatio-Temporal Air Quality Research Platform
             </div>
             <div>
-              Project Guide: Dr. Divya Bharathi P. · Continuous CAAQMS Delhi Airshed Dataset (Jan 2024 – Apr 2026)
+              Continuous CAAQMS Urban Airshed Monitoring &amp; Advection Benchmark
             </div>
           </div>
 

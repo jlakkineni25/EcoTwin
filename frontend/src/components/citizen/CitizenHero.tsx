@@ -43,7 +43,7 @@ export const CitizenHero: React.FC<Props> = ({
             </h1>
 
             <p className="mt-1.5 text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Clear air quality readings for your local area, 24-hour neural forecasts, and calm, practical daily health advice.
+              Clear air quality readings for your local area, 24-hour forecasts, and calm, practical daily health advice.
             </p>
           </div>
 

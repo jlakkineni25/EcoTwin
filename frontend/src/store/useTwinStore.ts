@@ -4,6 +4,7 @@ export type StudioView = 'map' | 'forecast' | 'whatif' | 'why' | 'health';
 
 interface TwinState {
   selectedStationId: number;
+  selectedCityId: string;
   currentWindowIdx: number;
   isPlaying: boolean;
   playbackSpeed: number; // ms per tick
@@ -30,6 +31,7 @@ interface TwinState {
 
   // Actions
   setSelectedStationId: (id: number) => void;
+  setSelectedCityId: (cityId: string) => void;
   setCurrentWindowIdx: (idx: number) => void;
   setIsPlaying: (playing: boolean) => void;
   togglePlaying: () => void;
@@ -49,6 +51,7 @@ interface TwinState {
 
 export const useTwinStore = create<TwinState>((set) => ({
   selectedStationId: 0,
+  selectedCityId: 'delhi',
   currentWindowIdx: 0,
   isPlaying: false,
   playbackSpeed: 1200,
@@ -67,6 +70,7 @@ export const useTwinStore = create<TwinState>((set) => ({
   demoStep: 1,
 
   setSelectedStationId: (id) => set({ selectedStationId: id }),
+  setSelectedCityId: (cityId) => set({ selectedCityId: cityId }),
   setCurrentWindowIdx: (idx) => set({ currentWindowIdx: idx }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   togglePlaying: () => set((state) => ({ isPlaying: !state.isPlaying })),

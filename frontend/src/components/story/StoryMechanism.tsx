@@ -35,63 +35,103 @@ export const StoryMechanism: React.FC = () => {
     {
       step: '01',
       id: 'spatial',
-      title: 'Dynamic Spatial Graph Construction',
+      title: '1. Spatial Understanding',
+      subtitle: 'How nearby stations influence each other',
       badge: 'SPATIAL BACKBONE',
       headline: 'Wind-Aligned Dynamic A(t) & 2-Hop Graph Convolutions',
       formula: 'A_ij(t) = max(0, w_i · r̂_ij) / (d_ij + ε) · [d_ij ≤ 12km]',
-      lead: 'Standard spatial GCNs rely on static distance matrices that ignore atmospheric fluid transport. WA-TGCN constructs a directed adjacency matrix A(t) dynamically recomputed every hour from surface wind vectors (u, v). Edges are formed only when wind blows toward a downwind neighbor within a 12 km airshed threshold. In-model self-loops (A + I) and a 2-hop graph convolution with residual skip connections propagate regional plumes across all 37 sensor stations without oversmoothing.',
+      plainConcept:
+        'EcoTwin connects monitoring stations based on their distance and the direction of the wind. This helps the model understand how pollution moves from one area to another across the airshed.',
+      lead:
+        'Standard spatial GCNs rely on static distance matrices that ignore atmospheric fluid transport. WA-TGCN constructs a directed adjacency matrix A(t) dynamically recomputed every hour from surface wind vectors (u, v). Edges are formed only when wind blows toward a downwind neighbor within a 12 km airshed threshold. In-model self-loops (A + I) and a 2-hop graph convolution with residual skip connections propagate regional plumes across all 37 sensor stations without oversmoothing.',
       features: [
         'Wind-aligned dot projection (w_i · r̂_ij)',
         '12 km physical airshed cutoff distance',
         'In-model self-loops (A + I) row-normalized',
-        '2-Hop GCN with LayerNorm & residual skip (+h)'
-      ]
+        '2-Hop GCN with LayerNorm & residual skip (+h)',
+      ],
+      technicalDetails: {
+        dimensions: '(19,921 × 37 × 37) hourly dynamic tensor',
+        staticEdges: '508 directed edges within 12.0 km Haversine cutoff',
+        dynamicEdges: '259.6 mean active edges/hour (51.1% survival rate)',
+        normalization: 'Row-normalized degree matrix D⁻¹(A(t) + I)',
+      },
     },
     {
       step: '02',
       id: 'temporal',
-      title: 'Recurrent Temporal Learning',
+      title: '2. Temporal Memory',
+      subtitle: 'How pollution changes over time',
       badge: 'TEMPORAL MEMORY',
       headline: '1-Layer GRU Encoding 48-Hour Multi-Variate Sequences',
       formula: 'g_t = GRU(x_t, g_{t-1})  [H = 32, T_in = 48, 28 channels]',
-      lead: 'Aerosol accumulation in the Indo-Gangetic Plain is strongly non-Markovian: severe winter pollution episodes depend on preceding multi-day stagnation, secondary aerosol chemistry, and nocturnal boundary layer trapping. EcoTwin feeds 48 consecutive hours of 28 input channels (meteorology, criteria pollutants, rolling 6h/24h statistics, 3h deltas, cyclical time, and two upwind transport features) through a 32-hidden-unit GRU with Dropout(0.2), capturing diurnal rhythm and physical inertia.',
+      plainConcept:
+        'Pollution does not happen in an instant—it builds up over days. A recurrent memory unit tracks 48 continuous hours of chemical, weather, and calendar signals to capture diurnal cycles and physical inertia.',
+      lead:
+        'Aerosol accumulation in the Indo-Gangetic Plain is strongly non-Markovian: severe winter pollution episodes depend on preceding multi-day stagnation, secondary aerosol chemistry, and nocturnal boundary layer trapping. EcoTwin feeds 48 consecutive hours of 28 input channels (meteorology, criteria pollutants, rolling 6h/24h statistics, 3h deltas, cyclical time, and two upwind transport features) through a 32-hidden-unit GRU with Dropout(0.2).',
       features: [
         '48-Hour continuous historical lookback (T_in = 48)',
-        '28 input channels (26 features + 2 upwind transport features)',
+        '28 input channels (26 base + 2 dynamic upwind transport features)',
         '1-Layer GRU (H = 32 hidden units, Dropout = 0.2)',
-        'Captures the diurnal rhythm and recent history'
-      ]
+        'Captures diurnal cycles, rush-hour spikes, and meteorological inertia',
+      ],
+      technicalDetails: {
+        sequenceLength: 'T_in = 48 timesteps (48 hours lookback)',
+        channelCount: '28 input channels (8 raw meteo/pollutants, wspd, 5 rolling/delta stats, 3 city context stats, 7 cyclical time, 2 upwind transport features)',
+        architecture: '1-Layer Gated Recurrent Unit (hidden_dim = 32, dropout = 0.2)',
+        tensorShape: 'X ∈ ℝ^{(B·N) × 48 × 28}',
+      },
     },
     {
       step: '03',
       id: 'attention',
-      title: 'Multi-Head Self-Attention',
+      title: '3. Attention Mechanism',
+      subtitle: 'Which past observations matter most',
       badge: 'ATTENTION CORE',
       headline: '4-Head Self-Attention with Residual Normalization',
       formula: 'c_temp = LayerNorm(MHA(Q, K, V) + g)_{[:, -1, :]}  [4 heads, d_k = 8]',
-      lead: 'Not all 48 historical hours exert equal influence on future particulate dispersion. Rather than using simple pooling or RNN hidden state flattening, EcoTwin deploys a 4-head Multihead Self-Attention layer (embed_dim=32, num_heads=4). Attention heads look across the entire 48-hour sequence before residual addition and LayerNorm extraction. In practice the learned attention is spread fairly evenly over the hours.',
+      plainConcept:
+        'Not all past hours carry equal weight. A 4-head attention mechanism scans the entire 48-hour history to highlight critical moments, like midnight thermal inversions or sudden wind stalls.',
+      lead:
+        'Not all 48 historical hours exert equal influence on future particulate dispersion. Rather than using simple pooling or RNN hidden state flattening, EcoTwin deploys a 4-head Multihead Self-Attention layer (embed_dim=32, num_heads=4). Attention heads look across the entire 48-hour sequence before residual addition and LayerNorm extraction. In practice the learned attention is spread fairly evenly over the hours.',
       features: [
         '4 Parallel attention heads (num_heads = 4, d_k = 8)',
         'Full 48-hour sequence self-attention (Q = K = V = g)',
         'Residual skip connection & LayerNorm extraction',
-        'Looks across all 48 hours (learned weights are fairly even)'
-      ]
+        'Looks across all 48 hours (learned weights are fairly even)',
+      ],
+      technicalDetails: {
+        heads: '4 parallel heads with d_k = 8 (32 total projection dimensions)',
+        attentionSpan: 'Full 48-hour lookback matrix (48 × 48 per head)',
+        extraction: 'LayerNorm(MultiheadAttention(Q, K, V) + g)_{[:, -1, :]}',
+        regularization: 'Dropout(0.2) + residual skip connection',
+      },
     },
     {
       step: '04',
       id: 'forecast',
-      title: 'Tri-Representation Decoder & Gated Anchor',
+      title: '4. Forecast Generation',
+      subtitle: 'How the model predicts future pollution levels',
       badge: 'FORECAST DECODER',
       headline: 'Forecast-Wind Graph A_fc, Gated Anchor & Volatility Huber Loss',
       formula: 'ŷ = MLP([c_temp, c_spatial^A_fc, e_future]) + α_anchor · y_0',
-      lead: 'For the 24 future hours the model receives the day-old forecast wind and a forecast-wind graph (A_fc). EcoTwin concatenates temporal context (32d) with the forecast-graph context (32d) and a future embedding of calendar and forecast wind (32d) into a 96-dimensional MLP decoder (96 → 32 → 1). A learned Gated Anchor (α_anchor · y_0, initialized decaying 1.0 → 0.3) tethers near-term predictions to the last observed reading, while a volatility-weighted Huber loss (0.56× to 1.87×) gives rapid winter surges more weight.',
+      plainConcept:
+        'The model combines plume advection, temporal history, and tomorrow’s forecast wind into a 24-hour prediction curve. A learned anchor tethers early hours to the latest reading so forecasts remain physically realistic.',
+      lead:
+        'For the 24 future hours the model receives the day-old forecast wind and a forecast-wind graph (A_fc). EcoTwin concatenates temporal context (32d) with the forecast-graph context (32d) and a future embedding of calendar and forecast wind (32d) into a 96-dimensional MLP decoder (96 → 32 → 1). A learned Gated Anchor (α_anchor · y_0, initialized decaying 1.0 → 0.3) tethers near-term predictions to the last observed reading, while a volatility-weighted Huber loss (0.56× to 1.87×) gives rapid winter surges more weight.',
       features: [
         'Tri-representation context fusion (96-dim MLP decoder)',
-        'Forecast-wind graph A_fc for the future hours',
+        'Forecast-wind graph A_fc for the 24 future hours',
         'Learned Gated Anchor (α decaying 1.0 → 0.3 · y_0)',
-        'Volatility Huber loss (0.56× to 1.87× swing weighting)'
-      ]
-    }
+        'Volatility Huber loss (0.56× to 1.87× swing weighting)',
+      ],
+      technicalDetails: {
+        contextFusion: '96 dims (32d temporal attention + 32d spatial GCN + 32d future weather/calendar embedding)',
+        mlpDecoder: 'Linear(96 → 32) → ReLU → Linear(32 → 24)',
+        gatedAnchor: 'α_h · y_0 (near-term stiffening for horizons +1h to +6h)',
+        lossFunction: 'Volatility-weighted Huber loss (w_vol ∈ [0.56, 1.87], δ = 1.0)',
+      },
+    },
   ];
 
   const currentStage = architectureStages[activeStage];
@@ -213,15 +253,48 @@ export const StoryMechanism: React.FC = () => {
                 <h3 className="text-2xl sm:text-3xl font-display font-extrabold text-[#FFFDF8] tracking-tight">
                   {currentStage.headline}
                 </h3>
+
+                {/* Level 1: Understand Immediately (Plain Language Concept) */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#ECC138]/15 via-[#181E2B] to-[#121620] border border-[#ECC138]/30 flex items-start gap-3 shadow-md">
+                  <span className="text-lg shrink-0 mt-0.5">💡</span>
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#ECC138] font-bold block">
+                      Level 1 · The Plain Idea
+                    </span>
+                    <p className="text-xs sm:text-[13px] text-slate-100 font-medium leading-relaxed mt-0.5">
+                      {currentStage.plainConcept}
+                    </p>
+                  </div>
+                </div>
+
                 <div className="p-3.5 rounded-xl bg-[#0B0E14] border border-[#232A3B] font-mono text-xs text-[#ECC138] flex flex-wrap items-center justify-between gap-2 shadow-inner">
-                  <span className="text-slate-300 font-semibold shrink-0">Core Formulation:</span>
+                  <span className="text-slate-300 font-semibold shrink-0">Mathematical Formulation:</span>
                   <span className="font-bold text-xs sm:text-[13px] text-[#ECC138] break-words sm:break-normal">{currentStage.formula}</span>
                 </div>
               </div>
 
-              <p className="text-sm sm:text-[14.5px] text-slate-200 font-normal leading-relaxed">
+              <p className="text-sm sm:text-[14px] text-slate-300 font-normal leading-relaxed">
                 {currentStage.lead}
               </p>
+
+              {/* Level 3: Deep Technical & Hyperparameter Specifications */}
+              <details className="p-3 rounded-xl bg-[#0B0E14] border border-[#232A3B] text-xs font-mono group cursor-pointer">
+                <summary className="flex items-center justify-between text-[#ECC138] font-bold select-none">
+                  <span className="flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-[#ECC138]" />
+                    <span>Level 3 · Full Hyperparameter & Tensor Details</span>
+                  </span>
+                  <span className="text-slate-400 text-[10px] group-open:rotate-180 transition-transform">▼</span>
+                </summary>
+                <div className="mt-2.5 space-y-1.5 pt-2 border-t border-[#232A3B]/60 text-[11px] text-slate-300">
+                  {Object.entries(currentStage.technicalDetails).map(([k, v]) => (
+                    <div key={k} className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 py-1 border-b border-[#232A3B]/30">
+                      <span className="text-slate-400 capitalize">{k.replace(/([A-Z])/g, ' $1')}:</span>
+                      <span className="text-white font-semibold sm:text-right font-mono">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
             </div>
 
             {/* Feature Checklist with Natural Wrapping */}
@@ -415,13 +488,13 @@ export const StoryMechanism: React.FC = () => {
                   <rect x="15" y="200" width="390" height="68" rx="8" fill="#121620" stroke="#232A3B" strokeWidth="1" />
                   <g>
                     <text x="25" y="218" fill="#ECC138" fontSize="9" fontFamily="monospace" fontWeight="bold">
-                      26 MULTI-VARIATE INPUT FEATURES (T_in = 48h continuous sequence):
+                      28 MULTI-VARIATE INPUT CHANNELS (T_in = 48h lookback sequence):
                     </text>
                     <text x="25" y="236" fill="#E2E8F0" fontSize="8.2" fontFamily="monospace">
-                      • <tspan fill="#FFFDF8" fontWeight="bold">Chemical & Met:</tspan> PM2.5, NO₂, CO, SO₂, O₃ · Wind (u,v,spd) · Temp, RH
+                      • <tspan fill="#FFFDF8" fontWeight="bold">Met & Chemistry (11ch):</tspan> PM2.5, PM10, NO₂, CO, SO₂, O₃, Temp, RH, Wind (u,v,wspd)
                     </text>
                     <text x="25" y="254" fill="#94A3B8" fontSize="8.2" fontFamily="monospace">
-                      • <tspan fill="#CBD5E1" fontWeight="bold">Dynamics & Time:</tspan> Rolling 6h & 24h Means · 3h Deltas · Sin/Cos Cyclical Time
+                      • <tspan fill="#CBD5E1" fontWeight="bold">Stats & Transport (17ch):</tspan> Rolling 6h/24h, Deltas, Time (7ch) + Upwind Advection (adv_pm, adv_diff)
                     </text>
                   </g>
                 </svg>

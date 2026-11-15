@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Station, StationForecast, SummaryData } from '../../types';
 import { DelhiZone, STATION_ZONE_MAPPING } from '../../utils/citizenZones';
+import { ALL_STATIONS_DATA } from '../../data/citiesData';
+import { getAQICategory } from '../../utils/aqi';
 import { CitizenNav } from './CitizenNav';
 import { CitizenHero } from './CitizenHero';
 import { CitizenStationCard } from './CitizenStationCard';
@@ -9,6 +11,7 @@ import { CitizenWindMovement } from './CitizenWindMovement';
 import { CitizenHealthAdvice } from './CitizenHealthAdvice';
 import { CitizenMap } from './CitizenMap';
 import { CitizenResearchCTA } from './CitizenResearchCTA';
+import { EcoTwinLogo } from '../common/EcoTwinLogo';
 
 interface Props {
   stations: Station[];
@@ -42,14 +45,30 @@ export const CitizenExperience: React.FC<Props> = ({
     return stations.filter((s) => STATION_ZONE_MAPPING[s.id]?.zone === activeZone);
   }, [stations, activeZone]);
 
-  // Current selected station object
+  // Current selected station object (cross-city aware)
   const currentStation = useMemo(() => {
-    return stations.find((s) => s.id === selectedStationId) || stations[0];
+    return (
+      stations.find((s) => s.id === selectedStationId) ||
+      ALL_STATIONS_DATA.find((s) => s.id === selectedStationId) ||
+      stations[0]
+    );
   }, [stations, selectedStationId]);
 
-  // Current station's forecast data
+  // Current station's forecast data (cross-city fallback aware)
   const currentForecast = useMemo(() => {
-    return forecasts.find((f) => f.station_id === currentStation?.id) ?? forecasts[0];
+    const f = forecasts.find((fc) => fc.station_id === currentStation?.id);
+    if (f) return f;
+    const stnMeta = ALL_STATIONS_DATA.find((s) => s.id === currentStation?.id);
+    const baseVal = Math.round(stnMeta?.medianPm25 || 45);
+    return {
+      station_id: currentStation?.id || 0,
+      current_pm25: baseVal,
+      current_aqi: getAQICategory(baseVal),
+      actual_24h: Array(24).fill(baseVal),
+      predicted_24h: Array(24).fill(baseVal),
+      peak_predicted: baseVal,
+      hours_to_breach_cpcb: baseVal > 60 ? 0 : null,
+    };
   }, [forecasts, currentStation]);
 
   // Citywide average PM2.5 calculation
@@ -178,8 +197,14 @@ export const CitizenExperience: React.FC<Props> = ({
       <footer className="border-t border-[#232A3B] bg-[#0E121B] py-8 px-4 sm:px-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-mono font-bold text-slate-300">ECOTWIN</span>
-            <span>· Citizen Clean Air Companion</span>
+            <EcoTwinLogo
+              size="sm"
+              interactive
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              ariaLabel="EcoTwin Citizen Companion - Scroll to top"
+            />
+            <span className="text-slate-500 hidden sm:inline">·</span>
+            <span className="text-slate-400 hidden sm:inline">Citizen Clean Air Companion</span>
           </div>
 
           <div className="flex items-center gap-4 text-slate-400">
@@ -194,7 +219,7 @@ export const CitizenExperience: React.FC<Props> = ({
           </div>
 
           <div className="text-[11px] text-slate-400 font-mono">
-            Designed for Delhi NCR Citizens
+            Multi-City Clean Air Intelligence · Designed for Citizens
           </div>
         </div>
       </footer>

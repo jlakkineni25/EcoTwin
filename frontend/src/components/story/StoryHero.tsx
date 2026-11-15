@@ -200,19 +200,17 @@ export const StoryHero: React.FC<StoryHeroProps> = ({ onSwitchVariant, stations,
         className="absolute inset-0 w-full h-full pointer-events-none z-[1]"
       />
 
-      {/* 3. Top University & Thesis Metadata Header Bar */}
+      {/* 3. Top Platform Header Bar */}
       <div className="relative z-10 max-w-7xl mx-auto w-full pt-2 pb-4 border-b border-[#232A3B]/80 flex flex-wrap items-center justify-between gap-4 text-xs font-mono uppercase tracking-widest text-slate-400">
         <div className="flex items-center gap-2.5">
           <span className="w-2 h-2 rounded-full bg-[#ECC138] animate-ping" />
-          <span className="text-[#FFFDF8] font-bold">Amrita Vishwa Vidyapeetham</span>
+          <span className="text-[#FFFDF8] font-bold">ECOTWIN</span>
           <span className="text-slate-600 hidden sm:inline">/</span>
-          <span className="text-slate-400 hidden sm:inline">Dept. of Computer Science & Engineering</span>
+          <span className="text-slate-400 hidden sm:inline">Wind-Aware Environmental Intelligence Platform</span>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-slate-400">B.Tech Thesis 2026 · Team 86</span>
-          <span className="text-slate-600 hidden md:inline">/</span>
-          <span className="text-[#ECC138] hidden md:inline">Guide: Dr. Divya Bharathi P</span>
+          <span className="text-slate-400 hidden md:inline">Continuous Airshed Intelligence</span>
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#ECC138]/10 border border-[#ECC138]/30 text-[#ECC138] text-[10px] font-semibold">
             <Radio className="w-3 h-3 text-[#ECC138]" />
             <span>37 SENSORS</span>

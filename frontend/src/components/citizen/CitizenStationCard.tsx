@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Station, StationForecast } from '../../types';
 import { CPCB_CATEGORIES, getAQICategory } from '../../utils/aqi';
 import { STATION_ZONE_MAPPING, DelhiZone, formatObservationTimestamp } from '../../utils/citizenZones';
+import { ALL_STATIONS_DATA } from '../../data/citiesData';
 import { AQICharacter, getCompanionDialogue } from './CitizenCharacters';
 import { FloatingParticles } from './FloatingParticles';
 import {
@@ -55,10 +56,14 @@ export const CitizenStationCard: React.FC<Props> = ({
     [currentCat, station.name, currentVal]
   );
 
+  const geoMeta = ALL_STATIONS_DATA.find((s) => s.id === station.id);
+  const isPrimaryTwin = geoMeta ? geoMeta.isPrimaryTwin : station.id < 1000;
+  const cityName = geoMeta?.cityName || 'Delhi NCR';
+
   const zoneMeta = STATION_ZONE_MAPPING[station.id] || {
-    zone: 'Central' as DelhiZone,
-    areaType: 'Urban Area',
-    landmark: 'Central Delhi',
+    zone: isPrimaryTwin ? ('Central' as DelhiZone) : ('Regional' as any),
+    areaType: isPrimaryTwin ? 'Urban Area' : `${cityName} CAAQMS Monitor`,
+    landmark: isPrimaryTwin ? 'Central Delhi' : `${cityName} Network`,
   };
 
   // Safe CPCB 24-hr threshold
@@ -158,23 +163,28 @@ export const CitizenStationCard: React.FC<Props> = ({
         </div>
 
         {/* SECTION A: Station Header & Quick Location Overview */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 relative z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 relative z-10">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] font-mono font-bold">
                 <MapPin className="w-3 h-3 text-emerald-400" />
                 SELECTED NEIGHBORHOOD
               </span>
-              <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-[#181E2B] border border-[#232A3B]">
-                {zoneMeta.zone} Delhi
+              <span className="text-[11px] font-mono text-slate-300 px-2.5 py-0.5 rounded-full bg-[#181E2B] border border-[#232A3B]">
+                {isPrimaryTwin ? `${zoneMeta.zone} Delhi` : cityName}
               </span>
+              {!isPrimaryTwin && (
+                <span className="text-[10px] font-mono text-cyan-300 px-2 py-0.5 rounded-full bg-cyan-950/40 border border-cyan-500/30">
+                  Historical Station Baseline (Delhi is active 24h neural twin)
+                </span>
+              )}
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               {station.name}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Near {zoneMeta.landmark} · {zoneMeta.areaType}
+              {isPrimaryTwin ? `Near ${zoneMeta.landmark} · ${zoneMeta.areaType}` : `${cityName} CAAQMS Continuous Air Monitoring Network`}
             </p>
           </div>
 
@@ -190,6 +200,47 @@ export const CitizenStationCard: React.FC<Props> = ({
             <span className="text-[10px] font-mono text-slate-400">
               Observed: {timeInfo.formattedDate}{timeInfo.formattedTime && ` at ${timeInfo.formattedTime}`}
             </span>
+          </div>
+        </div>
+
+        {/* CITIZEN 3-QUESTION INSTANT GLANCE */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 my-3.5 p-3 sm:p-3.5 rounded-2xl bg-[#0D111A] border border-[#232A3B] relative z-10 shadow-inner">
+          <div className="flex items-start gap-2.5 p-1">
+            <span className="text-lg shrink-0">💨</span>
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold block">
+                1. How is the air?
+              </span>
+              <span className="text-xs font-bold text-white flex items-center gap-1 mt-0.5">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: catCfg.color }} />
+                <span>{currentCat}</span>
+                <span className="text-slate-400 font-normal">({currentVal} µg/m³)</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2.5 p-1 border-t sm:border-t-0 sm:border-l border-[#232A3B] pt-2 sm:pt-0 sm:pl-3">
+            <span className="text-lg shrink-0">👤</span>
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold block">
+                2. What it means for you
+              </span>
+              <span className="text-xs text-slate-200 leading-snug block mt-0.5 font-medium">
+                {catCfg.description}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2.5 p-1 border-t sm:border-t-0 sm:border-l border-[#232A3B] pt-2 sm:pt-0 sm:pl-3">
+            <span className="text-lg shrink-0">🛡️</span>
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold block">
+                3. What you should do
+              </span>
+              <span className="text-xs text-emerald-300 leading-snug block mt-0.5 font-medium">
+                {catCfg.actionableTips[0]}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -223,7 +274,7 @@ export const CitizenStationCard: React.FC<Props> = ({
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="px-3 py-2.5 rounded-2xl bg-[#181E2B] hover:bg-[#1E2638] border border-[#232A3B] text-xs font-mono font-semibold text-slate-300 flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
             >
-              <span>37 Stations</span>
+              <span>{allStations.length} Stations</span>
               <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
           </div>
@@ -232,7 +283,7 @@ export const CitizenStationCard: React.FC<Props> = ({
           {isDropdownOpen && (
             <div className="absolute left-0 right-0 top-full mt-2 bg-[#141A26] border border-[#232A3B] rounded-2xl shadow-2xl z-50 p-2 max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 animate-in fade-in slide-in-from-top-2">
               <div className="px-3 py-1.5 text-[10px] font-mono uppercase text-slate-400 border-b border-[#232A3B] flex items-center justify-between">
-                <span>Select from 37 Delhi Monitoring Stations</span>
+                <span>Select a Station ({allStations.length} Available)</span>
                 <span>{filteredDropdownStations.length} Results</span>
               </div>
 
@@ -383,7 +434,7 @@ export const CitizenStationCard: React.FC<Props> = ({
 
                 <div>
                   <span className="text-[10px] text-slate-400 block font-mono">
-                    Delhi Average:
+                    {isPrimaryTwin ? 'Delhi Average:' : 'Reference Mean (Delhi):'}
                   </span>
                   <span
                     className={`text-xs font-semibold ${
@@ -399,13 +450,13 @@ export const CitizenStationCard: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* 2. SUBORDINATE DELHI-WIDE BENCHMARKS (Clearly Differentiated as Reference Points) */}
+      {/* 2. SUBORDINATE REGIONAL BENCHMARKS (Clearly Differentiated as Reference Points) */}
       <div className="bg-[#0E121B] border border-[#232A3B] rounded-2xl p-4 shadow-lg">
         <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-1.5">
             <BarChart className="w-3.5 h-3.5 text-slate-400" />
             <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-              Delhi-Wide Context (Reference Across 37 Stations)
+              {isPrimaryTwin ? 'Delhi-Wide Context (Reference Across 37 Stations)' : `Baseline Comparison (Delhi Digital Twin Reference)`}
             </span>
           </div>
           <span className="text-[10px] text-slate-400 font-mono">
@@ -418,10 +469,10 @@ export const CitizenStationCard: React.FC<Props> = ({
           <div className="p-3 rounded-xl bg-[#121620] border border-[#232A3B] flex items-center justify-between sm:flex-col sm:items-start">
             <div>
               <span className="text-[10px] font-mono uppercase text-slate-400 block">
-                Delhi Average (37 Nodes)
+                {isPrimaryTwin ? 'Delhi Average (37 Nodes)' : 'Reference Mean (Delhi)'}
               </span>
               <span className="text-xs text-slate-400 font-medium">
-                Citywide Mean
+                {isPrimaryTwin ? 'Citywide Mean' : 'Active Twin Mean'}
               </span>
             </div>
             <div className="sm:mt-2 flex items-baseline gap-1.5">

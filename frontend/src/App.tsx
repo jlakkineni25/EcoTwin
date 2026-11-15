@@ -27,8 +27,11 @@ import { StoryTwinStudio } from './components/story/StoryTwinStudio';
 import { StoryEvaluations } from './components/story/StoryEvaluations';
 import { PanelWalkthrough } from './components/walkthrough/PanelWalkthrough';
 import { CitizenExperience } from './components/citizen/CitizenExperience';
+import { EcoTwinLogo } from './components/common/EcoTwinLogo';
 import { AlertCircle, Wind, Command, X } from 'lucide-react';
 import { asset } from './utils/paths';
+import { ALL_STATIONS_DATA } from './data/citiesData';
+import { getAQICategory } from './utils/aqi';
 
 export const App: React.FC = () => {
   const { data: stations, isLoading: loadingStations, error: errStations } = useStations();
@@ -194,18 +197,38 @@ export const App: React.FC = () => {
   const isLoading = loadingStations || loadingSummary || loadingPbIndex || loadingFrame || loadingCalibration || (isLive && !liveFrame);
   const isError = errStations || errPbIndex || errFrame;
 
-  // Selected station metadata & forecast
+  // Selected station metadata & forecast (cross-city aware)
   const selectedStation = useMemo(() => {
     if (!stations) return null;
-    return stations.find((s) => s.id === selectedStationId) || stations[0];
+    const found = stations.find((s) => s.id === selectedStationId);
+    if (found) return found;
+    const crossFound = ALL_STATIONS_DATA.find((s) => s.id === selectedStationId);
+    if (crossFound) {
+      return {
+        id: crossFound.id,
+        name: crossFound.name,
+        lat: crossFound.lat,
+        lon: crossFound.lon,
+      };
+    }
+    return stations[0];
   }, [stations, selectedStationId]);
 
   const selectedForecast = useMemo(() => {
     if (!currentFrame || !selectedStation) return null;
-    return (
-      currentFrame.stations.find((f) => f.station_id === selectedStation.id) ||
-      currentFrame.stations[0]
-    );
+    const fc = currentFrame.stations.find((f) => f.station_id === selectedStation.id);
+    if (fc) return fc;
+    const stnMeta = ALL_STATIONS_DATA.find((s) => s.id === selectedStation.id);
+    const baseVal = Math.round(stnMeta?.medianPm25 || 45);
+    return {
+      station_id: selectedStation.id,
+      current_pm25: baseVal,
+      current_aqi: getAQICategory(baseVal),
+      actual_24h: Array(24).fill(baseVal),
+      predicted_24h: Array(24).fill(baseVal),
+      peak_predicted: baseVal,
+      hours_to_breach_cpcb: baseVal > 60 ? 0 : null,
+    };
   }, [currentFrame, selectedStation]);
 
   // Real wind of the current window; the what-if compass follows it until a scenario is chosen
@@ -408,15 +431,15 @@ export const App: React.FC = () => {
       </aside>
 
       {/* Cinematic Presentation Footer */}
-      <footer className="py-12 px-6 border-t border-[#232A3B] bg-[#07090D] text-center text-xs text-slate-500 flex flex-col items-center gap-2">
-        <div className="flex items-center gap-2 font-display font-extrabold text-[#FFFDF8] text-sm">
-          <span>ECO<span className="text-[#ECC138]">TWIN</span></span>
-          <span className="text-slate-600">/</span>
-          <span className="text-xs font-mono text-slate-400 font-normal">WA-TGCN Air Quality Digital Twin</span>
-        </div>
-        <p className="text-slate-400 max-w-xl text-[11px] leading-relaxed">
-          Final Year Project · Team 86 · Department of Computer Science & Engineering · Amrita Vishwa Vidyapeetham.
-          Guide: Dr. Divya Bharathi P. Evaluated across 37 CPCB CAAQMS stations in Delhi (Jan 2024 – Apr 2026).
+      <footer className="py-12 px-6 border-t border-[#232A3B] bg-[#07090D] text-center text-xs text-slate-500 flex flex-col items-center gap-3">
+        <EcoTwinLogo
+          size="md"
+          interactive
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          ariaLabel="EcoTwin - Scroll to top"
+        />
+        <p className="text-slate-400 max-w-xl text-[11px] leading-relaxed font-mono">
+          Wind-Aware Air Quality Monitoring · Continuous CAAQMS Spatio-Temporal Digital Twin
         </p>
       </footer>
     </div>

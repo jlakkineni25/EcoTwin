@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Station } from '../../types';
 import { DelhiZone, DELHI_ZONES, STATION_ZONE_MAPPING, formatObservationTimestamp } from '../../utils/citizenZones';
+import { EcoTwinLogo } from '../common/EcoTwinLogo';
 import {
   Search,
   MapPin,
@@ -70,24 +71,15 @@ export const CitizenNav: React.FC<Props> = ({
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-3">
         {/* Brand & Citizen Badge */}
         <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-[#ECC138] flex items-center justify-center text-base shadow-md shadow-emerald-500/20">
-              🌱
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-sm sm:text-base font-black tracking-tight text-white">
-                  ECOTWIN
-                </span>
-                <span className="hidden sm:inline text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                  Citizen Companion
-                </span>
-              </div>
-              <p className="hidden sm:block text-[11px] text-slate-400">
-                Delhi NCR Clean Air Insights & Neighborhood Forecasts
-              </p>
-            </div>
-          </div>
+          <EcoTwinLogo
+            size="md"
+            interactive
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            ariaLabel="EcoTwin Citizen Companion - Scroll to top"
+          />
+          <span className="hidden sm:inline text-[10px] sm:text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono">
+            Citizen Companion
+          </span>
         </div>
 
         {/* Search Bar & Auto-Suggestions */}

@@ -237,7 +237,7 @@ export const StoryTwinIntro: React.FC<StoryTwinIntroProps> = ({
                 <span className="text-slate-600">·</span>
                 <span className="flex items-center gap-1.5 text-slate-300">
                   <Clock className="w-3.5 h-3.5 text-[#38BDF8]" />
-                  <span>14.5h Warning Lead</span>
+                  <span>Up to 24h Early Warning</span>
                 </span>
               </div>
             </div>
@@ -634,12 +634,12 @@ export const StoryTwinIntro: React.FC<StoryTwinIntroProps> = ({
               <div className="hidden sm:block">
                 <div className="text-slate-500 text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
                   <Clock className="w-3 h-3 text-[#38BDF8]" />
-                  <span>Breach Early Warning</span>
+                  <span>Early Breach Alert</span>
                 </div>
                 <div className="text-xl sm:text-2xl font-display font-extrabold text-[#38BDF8] mt-0.5">
-                  14.5 <span className="text-xs font-mono text-slate-400 font-normal">Hours Lead</span>
+                  Up to 24h <span className="text-xs font-mono text-slate-400 font-normal">Lead Time</span>
                 </div>
-                <div className="text-[10px] text-slate-400">Prior to CPCB 60 Breach</div>
+                <div className="text-[10px] text-slate-400">Dynamic Multi-Horizon Warning</div>
               </div>
             </div>
 

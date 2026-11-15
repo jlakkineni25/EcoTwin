@@ -377,10 +377,10 @@ export const StoryDilemma: React.FC = () => {
           </div>
 
           <div className="p-4 rounded-2xl bg-[#121620]/80 border border-[#232A3B] space-y-2 font-mono">
-            <div className="text-[10px] text-slate-400 uppercase tracking-wider">03 // Direction-Aware Links</div>
-            <div className="text-sm font-bold text-[#10B981]">Direction-Aware Links</div>
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider">03 // Physical Consistency</div>
+            <div className="text-sm font-bold text-[#10B981]">Advective Mass Flow</div>
             <p className="text-xs text-slate-400 font-light">
-              A station only receives from the stations the wind blows from; opposing links are not created.
+              A station only receives information from upwind stations the wind blows from; opposing links are severed, preventing false signal leakage across perpendicular wind corridors.
             </p>
           </div>
         </div>
