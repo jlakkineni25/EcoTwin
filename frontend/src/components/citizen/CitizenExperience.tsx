@@ -18,6 +18,7 @@ interface Props {
   selectedStationId: number;
   onSelectStation: (id: number) => void;
   wind: { fromDeg: number; speedKmh: number } | null;
+  windLinks?: [number, number, number][];
   onExploreResearch: () => void;
 }
 
@@ -29,6 +30,7 @@ export const CitizenExperience: React.FC<Props> = ({
   selectedStationId,
   onSelectStation,
   wind,
+  windLinks,
   onExploreResearch,
 }) => {
   const [activeZone, setActiveZone] = useState<DelhiZone>('All');
@@ -161,6 +163,8 @@ export const CitizenExperience: React.FC<Props> = ({
             selectedStationId={selectedStationId}
             onSelectStation={onSelectStation}
             compassAngle={wind?.fromDeg}
+            wind={wind}
+            links={windLinks}
           />
         </section>
 

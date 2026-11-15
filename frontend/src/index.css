@@ -25,3 +25,8 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #ECC138;
 }
+
+/* Map: when zoomed out the station name labels overlap, so they appear only on hover (toggled by DigitalTwinMap) */
+.map-labels-off .marker-label { display: none; }
+.map-labels-off .maplibregl-marker:hover .marker-label { display: flex; }
+.map-labels-off .maplibregl-marker:hover { z-index: 60; }

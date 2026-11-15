@@ -13,3 +13,10 @@ export function windSpeedWord(kmh: number): string {
   if (kmh < 30) return 'moderate';
   return 'strong';
 }
+
+// "north-west" style wording for people (8 directions)
+const WORDS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+export function compassWord(deg: number): string {
+  const d = ((deg % 360) + 360) % 360;
+  return WORDS[Math.round(d / 45) % 8];
+}

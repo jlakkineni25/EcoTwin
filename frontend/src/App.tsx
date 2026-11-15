@@ -265,6 +265,7 @@ export const App: React.FC = () => {
         selectedStationId={selectedStationId}
         onSelectStation={(id) => setSelectedStationId(id)}
         wind={windFrame ? { fromDeg: windFrame.d, speedKmh: windFrame.s * 3.6 } : null}
+        windLinks={activeEdgesMap?.[String(currentFrame.window_idx)]}
         onExploreResearch={() => {
           setViewMode('research');
           window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -231,4 +231,3 @@ export function useModelCard() {
     staleTime: Infinity,
   });
 }
-

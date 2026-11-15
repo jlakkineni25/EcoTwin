@@ -68,3 +68,27 @@ v2_clean/frontend_export_dynadv/
 
 # --- live data snapshot used for local development (the hosted site reads the live-data branch instead) ---
 frontend/public/data/live/
+
+# --- secrets and local environment (the OpenAQ key is only ever an environment variable / GitHub secret) ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets*.json
+
+# --- virtual environments, test and build caches ---
+.venv/
+venv/
+.pytest_cache/
+frontend/.vite/
+*.tsbuildinfo
+
+# --- logs and OS / editor files ---
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/

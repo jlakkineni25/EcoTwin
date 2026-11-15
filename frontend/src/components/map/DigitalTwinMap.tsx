@@ -45,6 +45,7 @@ export const DigitalTwinMap: React.FC<Props> = ({
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
+  const autoFitRef = useRef(true); // keep all stations in view until the visitor moves the map themselves
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
 
@@ -113,6 +114,7 @@ export const DigitalTwinMap: React.FC<Props> = ({
   const flyToStation = (stationId: number) => {
     const s = stationMap.get(stationId);
     if (s && mapRef.current) {
+      autoFitRef.current = false;
       mapRef.current.flyTo({ center: [s.lon, s.lat], zoom: 12.4, duration: 1200 });
       setSelectedStationId(stationId);
       setIsSearchOpen(false);
@@ -330,6 +332,31 @@ export const DigitalTwinMap: React.FC<Props> = ({
     };
   }, []);
 
+  // Frame all stations (not a fixed zoom): a smaller map needs a lower zoom for every node to be visible
+  const fitAllStations = (animate: boolean) => {
+    const map = mapRef.current;
+    if (!map || stations.length === 0) return;
+    const b = new maplibregl.LngLatBounds();
+    stations.forEach((s) => b.extend([s.lon, s.lat]));
+    map.fitBounds(b, { padding: { top: 90, bottom: 70, left: 60, right: 70 }, maxZoom: 11.4, duration: animate ? 800 : 0 });
+  };
+
+  // First frame once the map and the stations are there; the visitor's own panning or zooming turns auto-fit off
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded || stations.length === 0) return;
+    if (autoFitRef.current) fitAllStations(false);
+    const stop = (e: { originalEvent?: unknown }) => { if (e.originalEvent) autoFitRef.current = false; };
+    // zoomed out, 37 name labels overlap: show them only on hover until the map is zoomed in (see .map-labels-off in index.css)
+    const labels = () => map.getContainer().classList.toggle('map-labels-off', map.getZoom() < 11.3);
+    labels();
+    map.on('dragstart', stop);
+    map.on('zoomstart', stop);
+    map.on('zoom', labels);
+    return () => { map.off('dragstart', stop); map.off('zoomstart', stop); map.off('zoom', labels); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapLoaded, stations]);
+
   // Synchronize Satellite raster layer & Reference layer opacity with active Basemap mode
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
@@ -371,7 +398,8 @@ export const DigitalTwinMap: React.FC<Props> = ({
 
       // Custom HTML element for station node styled in high-visibility cyber/GIS aesthetics
       const el = document.createElement('div');
-      el.className = `group relative cursor-pointer flex flex-col items-center transition-all ${
+      // no `relative` here: MapLibre positions the marker with position:absolute, and a Tailwind position class would override it
+      el.className = `group cursor-pointer flex flex-col items-center transition-all ${
         isSelected ? 'z-50' : 'z-20 hover:z-40'
       }`;
       el.onclick = (e) => {
@@ -436,7 +464,7 @@ export const DigitalTwinMap: React.FC<Props> = ({
         ${
           !isSelected
             ? `
-              <div class="mt-1 px-2.5 py-0.5 rounded-xl bg-[#0B0E14]/90 backdrop-blur-md border border-[#232A3B] text-[10px] font-medium text-[#FFFDF8] whitespace-nowrap shadow-xl pointer-events-none opacity-85 group-hover:opacity-100 group-hover:border-[#C89B6D] transition-all flex items-center gap-1.5 z-20">
+              <div class="marker-label mt-1 px-2.5 py-0.5 rounded-xl bg-[#0B0E14]/90 backdrop-blur-md border border-[#232A3B] text-[10px] font-medium text-[#FFFDF8] whitespace-nowrap shadow-xl pointer-events-none opacity-85 group-hover:opacity-100 group-hover:border-[#C89B6D] transition-all flex items-center gap-1.5 z-20">
                 <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${catConfig.color}"></span>
                 <span class="font-medium">${station.name}</span>
                 <span class="font-mono text-[9px] font-bold text-[#ECC138]">${pm25}</span>
@@ -585,10 +613,11 @@ export const DigitalTwinMap: React.FC<Props> = ({
         const scenSpeed = scenarioSpeed(scenarioKey);
         if (scenSpeed !== undefined) speedMult = scenSpeed * (realWind ? Math.min(2.5, Math.max(0.5, realWind.speedMs / 2)) : 1);
 
-        // Downwind flow vector: wind FROM direction blows TO (angle + 180)
+        // compassAngle is where the wind blows FROM (degrees clockwise from north); it blows TOWARDS that bearing + 180.
+        // On screen east is +x and south is +y (so dy = -north); in lon/lat the particles move by (east, north).
         const flowAngle = angleRad + Math.PI;
-        const dx = Math.cos(flowAngle);
-        const dy = Math.sin(flowAngle);
+        const dx = Math.sin(flowAngle); // east component
+        const dy = -Math.cos(flowAngle); // screen-down (south) component
 
         const trailBaseLen = 16 * speedMult;
 
@@ -620,7 +649,7 @@ export const DigitalTwinMap: React.FC<Props> = ({
               screenPt.x,
               screenPt.y,
               screenPt.x - dx * trailLen,
-              screenPt.y + dy * trailLen
+              screenPt.y - dy * trailLen
             );
             grad.addColorStop(0, `rgba(254, 240, 138, ${alpha})`);
             grad.addColorStop(0.35, `rgba(236, 193, 56, ${alpha * 0.75})`);
@@ -628,7 +657,7 @@ export const DigitalTwinMap: React.FC<Props> = ({
 
             ctx.beginPath();
             ctx.moveTo(screenPt.x, screenPt.y);
-            ctx.lineTo(screenPt.x - dx * trailLen, screenPt.y + dy * trailLen);
+            ctx.lineTo(screenPt.x - dx * trailLen, screenPt.y - dy * trailLen);
             ctx.strokeStyle = grad;
             ctx.lineWidth = 2.0;
             ctx.stroke();
@@ -663,6 +692,26 @@ export const DigitalTwinMap: React.FC<Props> = ({
     scenarioKey,
     realWind,
   ]);
+
+  // Keep the map the size of its container whenever the layout changes (window, panels, expand/collapse); the wind canvas follows
+  useEffect(() => {
+    const el = mapContainer.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let timer: ReturnType<typeof setTimeout>;
+    const ro = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        map.resize();
+        if (autoFitRef.current) fitAllStations(false);
+        window.dispatchEvent(new Event('resize')); // the wind canvas listens to this to match the new size
+      }, 120);
+    });
+    ro.observe(el);
+    return () => { clearTimeout(timer); ro.disconnect(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stations]);
 
   // Re-fit MapLibre viewport when cockpit expands or collapses
   useEffect(() => {
@@ -868,9 +917,9 @@ export const DigitalTwinMap: React.FC<Props> = ({
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
-            onClick={() => mapRef.current?.flyTo({ center: [77.21, 28.64], zoom: 10.2 })}
+            onClick={() => { autoFitRef.current = true; fitAllStations(true); }}
             className="p-2 rounded-lg text-slate-400 hover:text-[#ECC138] hover:bg-[#121620] transition-colors"
-            title="Center Delhi Airshed"
+            title="Show all stations"
           >
             <Compass className="w-4 h-4" />
           </button>

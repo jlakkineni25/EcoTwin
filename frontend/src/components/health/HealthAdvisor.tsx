@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Station, StationForecast } from '../../types';
 import { CPCB_CATEGORIES, getAQICategory } from '../../utils/aqi';
 import { useTwinStore } from '../../store/useTwinStore';
+import { compassWord, degToCompass, windSpeedWord } from '../../utils/wind';
 import { 
   MapPin, 
   ChevronDown, 
@@ -51,7 +52,10 @@ export const HealthAdvisor: React.FC<Props> = ({
   onNavigateToForecast,
   isEmbedded = false,
 }) => {
-  const { setSelectedStationId, compassAngle } = useTwinStore();
+  const { setSelectedStationId, realWind } = useTwinStore();
+  // real wind of the moment on screen (observed): speed in m/s, direction it blows FROM; null when there is no data
+  const windKmh = realWind ? realWind.speedMs * 3.6 : null;
+  const windWord = windKmh === null ? '' : windSpeedWord(windKmh);
   const [isStationDropdownOpen, setIsStationDropdownOpen] = useState(false);
 
   const currentVal = Math.round(forecast.current_pm25);
@@ -100,6 +104,8 @@ export const HealthAdvisor: React.FC<Props> = ({
   }, [forecast, baseDate]);
 
   const minVal = Math.min(...hourlyData.map((h) => h.val));
+  // when the forecast peaks (first hour of the maximum), taken from the same hourly forecast the ribbon shows
+  const peakHour = hourlyData.reduce((best, h) => (h.val > best.val ? h : best), hourlyData[0]);
 
   // Find lowest pollution window in next 24 hours
   const bestWindow = useMemo(() => {
@@ -304,7 +310,13 @@ export const HealthAdvisor: React.FC<Props> = ({
 
         {/* Condition Summary Paragraph */}
         <div className="mt-3 text-xs text-slate-300 leading-relaxed">
-          Boundary layer inversion trapping emissions. Max inflow <b className="text-[#ECC138]">{peakVal} µg/m³</b> expected, followed by gradual ventilation.
+          Now <b className="text-[#FFFDF8]">{currentVal} µg/m³</b> ({currentCat}).{' '}
+          {peakHour.val > currentVal + 5 ? (
+            <>The forecast peaks at <b className="text-[#ECC138]">{peakVal} µg/m³</b> around {peakHour.time} (in {peakHour.horizon} h)</>
+          ) : (
+            <>The forecast stays at or below <b className="text-[#ECC138]">{peakVal} µg/m³</b> (highest around {peakHour.time})</>
+          )}{' '}
+          and is lowest, about {minVal} µg/m³, around {bestWindow.startTime}.
         </div>
 
         {/* 3. HOURLY CONNECTED SPLINE TIMELINE (matching Screenshot 1 horizontal ribbon) */}
@@ -452,22 +464,24 @@ export const HealthAdvisor: React.FC<Props> = ({
                 <Wind className="w-3.5 h-3.5" />
                 <span>Wind Advection</span>
               </span>
-              <span>2.4 m/s</span>
+              <span>{realWind ? `${realWind.speedMs.toFixed(1)} m/s` : 'no data'}</span>
             </div>
             <div className="text-lg font-display font-bold text-[#FFFDF8]">
-              Light Breeze from NW ({compassAngle}°)
+              {realWind && windKmh !== null
+                ? `${windWord === 'calm' ? 'Calm air' : `${windWord[0].toUpperCase()}${windWord.slice(1)} wind`} from the ${compassWord(realWind.fromDeg)} (${Math.round(realWind.fromDeg)}°)`
+                : 'Wind data is not available for this moment'}
             </div>
             <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Transporting particulate plumes along the regional stubble corridor directly into Delhi.
+              Wind carries smoke and dust in the direction it blows. Calm air lets pollution build up; stronger wind spreads it out.
             </p>
           </div>
 
           <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-[#232A3B]">
             <div className="flex items-center gap-1.5 text-xs font-mono text-[#C89B6D]">
               <Compass className="w-3.5 h-3.5 text-[#ECC138]" />
-              <span>NW ({compassAngle}°)</span>
+              <span>{realWind ? `${degToCompass(realWind.fromDeg)} (${Math.round(realWind.fromDeg)}°)` : '—'}</span>
             </div>
-            <span className="text-[10px] font-mono text-slate-400">Ventilation: Low</span>
+            <span className="text-[10px] font-mono text-slate-400">{windKmh !== null ? `Wind: ${windWord} · ${Math.round(windKmh)} km/h` : 'Wind: no data'}</span>
           </div>
         </div>
       </div>
@@ -562,7 +576,9 @@ export const HealthAdvisor: React.FC<Props> = ({
               {currentVal > 100 ? 'N95 Respirator Advised' : 'Standard Commute'}
             </div>
             <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-              Maintain vehicle cabin air recirculation. Keep windows sealed during morning rush hour inversion.
+              {peakVal > 100
+                ? `Forecast for the next 24 hours: ${minVal} to ${peakVal} µg/m³ (peak around ${peakHour.time}). If you can, travel near the cleaner window, ${bestWindow.startTime} to ${bestWindow.endTime}. Closed vehicle windows with air recirculation, or a well-fitted N95 mask outdoors, reduce what you breathe in.`
+                : `Forecast for the next 24 hours: ${minVal} to ${peakVal} µg/m³. Air should stay in the lower range, so ordinary precautions are enough for most people.`}
             </p>
 
             {/* Commuter Checklist */}
