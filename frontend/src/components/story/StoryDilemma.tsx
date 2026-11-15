@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useInView } from '../../hooks/useInView';
+import { useModelCard } from '../../hooks/useTwinData';
 import { 
   Network, 
   Wind, 
@@ -15,6 +16,10 @@ import {
 } from 'lucide-react';
 
 export const StoryDilemma: React.FC = () => {
+  const { data: mc } = useModelCard();
+  const staticRmse = mc?.benchmarks.find((b) => b.key === 'static')?.rmse;
+  // share of the final model's total squared error that falls in the most volatile third of windows
+  const volShare = mc ? (100 * mc.rmse_by_regime.Volatile ** 2) / (mc.rmse_by_regime.Stable ** 2 + mc.rmse_by_regime.Moderate ** 2 + mc.rmse_by_regime.Volatile ** 2) : null;
   const { ref, isInView } = useInView({ threshold: 0.1 });
   const [activeRegime, setActiveRegime] = useState<'winter-nw' | 'calm' | 'easterly'>('winter-nw');
 
@@ -209,14 +214,14 @@ export const StoryDilemma: React.FC = () => {
               <div className="space-y-2 text-xs font-mono text-slate-300">
                 <div className="flex items-center justify-between py-1 border-b border-[#232A3B]">
                   <span className="text-slate-400">Error Concentration:</span>
-                  <span className="text-red-400 font-bold">77.9% during weather fronts</span>
+                  <span className="text-red-400 font-bold">{volShare !== null ? volShare.toFixed(1) : '—'}% in the most volatile third</span>
                 </div>
                 <div className="flex items-center justify-between py-1 border-b border-[#232A3B]">
                   <span className="text-slate-400">Baseline Evaluation:</span>
-                  <span className="text-slate-200 font-bold">RMSE 61.73 µg/m³</span>
+                  <span className="text-slate-200 font-bold">RMSE {staticRmse?.toFixed(2) ?? '—'} µg/m³</span>
                 </div>
                 <p className="text-[11px] text-slate-400 font-light leading-relaxed pt-1">
-                  Downwind stations (Anand Vihar) are forced to send pollution *backwards* into upwind stations against the wind vector. Crosswind stations exchange features despite zero physical connectivity.
+                  A fixed graph links stations in both directions, so a downwind station can pass information back to an upwind one, and crosswind stations exchange features whatever the wind does.
                 </p>
               </div>
             </div>
@@ -337,10 +342,10 @@ export const StoryDilemma: React.FC = () => {
                 </div>
                 <div className="flex items-center justify-between py-1 border-b border-[#232A3B]">
                   <span className="text-slate-400">Held-Out Evaluation:</span>
-                  <span className="text-[#10B981] font-bold">RMSE 60.92 µg/m³ (Superior)</span>
+                  <span className="text-[#10B981] font-bold">RMSE {mc?.overall.rmse.toFixed(2) ?? '—'} µg/m³ (within seed noise)</span>
                 </div>
                 <p className="text-[11px] text-slate-400 font-light leading-relaxed pt-1">
-                  Opposing backward links are strictly pruned. When calm conditions prevail, spatial borrowing drops to zero, preventing false pollution smoothing and preserving localized spike alerts.
+                  Opposing backward links are not created, so a station only receives from the stations the wind blows from.
                 </p>
               </div>
             </div>
@@ -367,22 +372,22 @@ export const StoryDilemma: React.FC = () => {
             <div className="text-[10px] text-slate-400 uppercase tracking-wider">02 // Temporal Dynamic Reconfiguration</div>
             <div className="text-sm font-bold text-[#ECC138]">Hourly Dynamic A(t)</div>
             <p className="text-xs text-slate-400 font-light">
-              Static graphs stay constant for 2 years. EcoTwin re-computes adjacency every single hour directly from real-time (u, v) wind vectors.
+              A fixed graph never changes. EcoTwin recomputes the adjacency every hour from the wind vectors (u, v).
             </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-[#121620]/80 border border-[#232A3B] space-y-2 font-mono">
-            <div className="text-[10px] text-slate-400 uppercase tracking-wider">03 // Calm Inversion Resilience</div>
-            <div className="text-sm font-bold text-[#10B981]">Zero False Borrowing</div>
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider">03 // Direction-Aware Links</div>
+            <div className="text-sm font-bold text-[#10B981]">Direction-Aware Links</div>
             <p className="text-xs text-slate-400 font-light">
-              Under stagnant nocturnal inversions (&lt;1.5 m/s), WA-TGCN automatically cuts inter-station edges, isolating point-source spikes.
+              A station only receives from the stations the wind blows from; opposing links are not created.
             </p>
           </div>
         </div>
 
         {/* 5. Section Footer with Navigation Cue */}
         <div className="pt-6 border-t border-[#232A3B] flex flex-wrap items-center justify-between gap-4 text-xs font-mono text-slate-500">
-          <div>Theoretical Gap Solved: Novelty RG6 (Wind-Aware Dynamic Graph Adjacency)</div>
+          <div>Approach: wind-aware dynamic graph adjacency (RG6)</div>
           
           <button
             onClick={scrollToInnovation}

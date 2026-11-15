@@ -1,4 +1,4 @@
-import { AQICategory } from '../types';
+import { AQICategory, Calibration } from '../types';
 
 export const CPCB_CATEGORIES: Record<
   AQICategory,
@@ -104,36 +104,40 @@ export function getAQIColor(category: AQICategory): string {
   return CPCB_CATEGORIES[category]?.color || '#94A3B8';
 }
 
-// Horizon-specific uncertainty sigma (based on v2 held-out test residuals)
-export const HORIZON_UNCERTAINTY_SIGMA: number[] = [
-  24.5, 27.2, 29.5, 31.8, 33.4, 34.6, 35.5, 36.3, 37.0, 37.6, 38.1, 38.5,
-  38.9, 39.3, 39.6, 39.8, 40.1, 40.3, 40.5, 40.6, 40.7, 40.7, 40.6, 40.6
-];
-
-// Cumulative standard normal distribution approximation for breach probabilities
-function normalCDF(z: number): number {
-  const b1 = 0.319381530;
-  const b2 = -0.356563782;
-  const b3 = 1.781477937;
-  const b4 = -1.821255978;
-  const b5 = 1.330274429;
-  const p = 0.2316419;
-  const c = 0.39894228;
-
-  if (z >= 0.0) {
-    const t = 1.0 / (1.0 + p * z);
-    return 1.0 - c * Math.exp(-z * z / 2.0) * t *
-      (t * (t * (t * (t * b5 + b4) + b3) + b2) + b1);
-  } else {
-    const t = 1.0 / (1.0 - p * z);
-    return c * Math.exp(-z * z / 2.0) * t *
-      (t * (t * (t * (t * b5 + b4) + b3) + b2) + b1);
-  }
+// Calibrated uncertainty (notebook 44). For each forecast horizon the table holds quantiles of the model's real error on the
+// validation windows, as z = log((actual + 1) / (forecast + 1)). An interval is (forecast + 1) * exp(q) - 1, and the probability that
+// PM2.5 exceeds a threshold is read off the same table. Nothing here is a fixed assumption about the error shape.
+function interp(x: number, xs: number[], ys: number[]): number {
+  if (x <= xs[0]) return ys[0];
+  if (x >= xs[xs.length - 1]) return ys[ys.length - 1];
+  let i = 1;
+  while (xs[i] < x) i++;
+  const t = (x - xs[i - 1]) / (xs[i] - xs[i - 1] || 1);
+  return ys[i - 1] + t * (ys[i] - ys[i - 1]);
 }
 
-export function computeBreachProbability(forecastVal: number, horizonIdx: number, threshold = 60.0): number {
-  const sigma = HORIZON_UNCERTAINTY_SIGMA[horizonIdx] || 38.0;
-  const z = (threshold - forecastVal) / sigma;
-  const prob = 1.0 - normalCDF(z);
-  return Math.min(Math.max(Math.round(prob * 100), 1), 99);
+function quantileZ(cal: Calibration, horizonIdx: number, percent: number): number {
+  const h = Math.min(Math.max(horizonIdx, 0), cal.quantiles.length - 1);
+  return interp(percent, cal.levels_percent, cal.quantiles[h]);
+}
+
+// [lower, upper] of the central interval holding `coverage` percent (80 -> 10th..90th percentile)
+export function calibratedInterval(forecast: number, horizonIdx: number, cal: Calibration, coverage: number): [number, number] {
+  const lo = (100 - coverage) / 2;
+  const hi = 100 - lo;
+  const lower = Math.max(0, (forecast + 1) * Math.exp(quantileZ(cal, horizonIdx, lo)) - 1);
+  const upper = (forecast + 1) * Math.exp(quantileZ(cal, horizonIdx, hi)) - 1;
+  return [lower, upper];
+}
+
+// Probability (percent, 1..99) that the real PM2.5 will exceed `threshold`, given the forecast
+export function computeBreachProbability(forecastVal: number, horizonIdx: number, cal: Calibration, threshold = 60.0): number {
+  const h = Math.min(Math.max(horizonIdx, 0), cal.quantiles.length - 1);
+  const z0 = Math.log((threshold + 1) / (forecastVal + 1));
+  const levels = cal.levels_percent.map((l) => l / 100);
+  const lowEdge = levels[0] / 2;
+  const highEdge = 1 - (1 - levels[levels.length - 1]) / 2;
+  const q = cal.quantiles[h];
+  const F = z0 <= q[0] ? lowEdge : z0 >= q[q.length - 1] ? highEdge : interp(z0, q, levels);
+  return Math.min(Math.max(Math.round((1 - F) * 100), 1), 99);
 }

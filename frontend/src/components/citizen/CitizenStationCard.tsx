@@ -90,13 +90,7 @@ export const CitizenStationCard: React.FC<Props> = ({
 
   // Compute Cleanest & Peak stations across Delhi
   const { cleanestStation, peakStation } = useMemo(() => {
-    if (!allForecasts || allForecasts.length === 0) {
-      return {
-        cleanestStation: { name: 'Aya Nagar', val: 78, cat: 'Moderate' as const },
-        peakStation: { name: 'Anand Vihar', val: 248, cat: 'Very Poor' as const },
-      };
-    }
-
+    // allForecasts is never empty here: the page only renders when the window has data
     let minVal = Infinity;
     let minStationId = 0;
     let maxVal = -Infinity;
@@ -119,12 +113,12 @@ export const CitizenStationCard: React.FC<Props> = ({
 
     return {
       cleanestStation: {
-        name: stationMap.get(minStationId) || 'Aya Nagar',
+        name: stationMap.get(minStationId) || `Station ${minStationId}`,
         val: minRounded,
         cat: getAQICategory(minRounded),
       },
       peakStation: {
-        name: stationMap.get(maxStationId) || 'Anand Vihar',
+        name: stationMap.get(maxStationId) || `Station ${maxStationId}`,
         val: maxRounded,
         cat: getAQICategory(maxRounded),
       },
@@ -156,10 +150,12 @@ export const CitizenStationCard: React.FC<Props> = ({
         <FloatingParticles color={catCfg.color} count={10} className="opacity-40" />
 
         {/* Subtle category-colored glow backdrop */}
-        <div
-          className="absolute -top-16 -right-16 w-64 h-64 rounded-full blur-3xl opacity-25 pointer-events-none"
-          style={{ backgroundColor: catCfg.color }}
-        />
+        <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+          <div
+            className="absolute -top-16 -right-16 w-64 h-64 rounded-full blur-3xl opacity-25"
+            style={{ backgroundColor: catCfg.color }}
+          />
+        </div>
 
         {/* SECTION A: Station Header & Quick Location Overview */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 relative z-10">
@@ -192,7 +188,7 @@ export const CitizenStationCard: React.FC<Props> = ({
               <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
             </button>
             <span className="text-[10px] font-mono text-slate-400">
-              Observed: {timeInfo.formattedDate} at {timeInfo.formattedTime}
+              Observed: {timeInfo.formattedDate}{timeInfo.formattedTime && ` at ${timeInfo.formattedTime}`}
             </span>
           </div>
         </div>
@@ -243,7 +239,8 @@ export const CitizenStationCard: React.FC<Props> = ({
               <div className="space-y-1 pt-1">
                 {filteredDropdownStations.map((st) => {
                   const stForecast = forecastMap.get(st.id);
-                  const pm25Val = stForecast ? Math.round(stForecast.current_pm25) : 120;
+                  if (!stForecast) return null;
+                  const pm25Val = Math.round(stForecast.current_pm25);
                   const cat = stForecast?.current_aqi || getAQICategory(pm25Val);
                   const catColor = CPCB_CATEGORIES[cat]?.color || '#94A3B8';
                   const isSelected = st.id === station.id;

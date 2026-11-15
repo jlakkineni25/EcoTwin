@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useInView } from '../../hooks/useInView';
+import { useModelCard } from '../../hooks/useTwinData';
 import { 
   Network, 
   GitBranch, 
@@ -18,8 +19,10 @@ import {
   Anchor,
   Flame
 } from 'lucide-react';
+import { asset } from '../../utils/paths';
 
 export const StoryMechanism: React.FC = () => {
+  const { data: mc } = useModelCard();
   const { ref, isInView } = useInView({ threshold: 0.1 });
   const [activeStage, setActiveStage] = useState<number>(0);
 
@@ -50,13 +53,13 @@ export const StoryMechanism: React.FC = () => {
       title: 'Recurrent Temporal Learning',
       badge: 'TEMPORAL MEMORY',
       headline: '1-Layer GRU Encoding 48-Hour Multi-Variate Sequences',
-      formula: 'g_t = GRU(x_t, g_{t-1})  [H = 32, T_in = 48, 26 features]',
-      lead: 'Aerosol accumulation in the Indo-Gangetic Plain is strongly non-Markovian: severe winter pollution episodes depend on preceding multi-day stagnation, secondary aerosol chemistry, and nocturnal boundary layer trapping. EcoTwin feeds 48 consecutive hours of 26 multi-variate features (meteorology, criteria pollutants, rolling 6h/24h statistics, 3h deltas, and cyclical time) through a 32-hidden-unit GRU with Dropout(0.2), capturing diurnal rhythm and physical inertia.',
+      formula: 'g_t = GRU(x_t, g_{t-1})  [H = 32, T_in = 48, 28 channels]',
+      lead: 'Aerosol accumulation in the Indo-Gangetic Plain is strongly non-Markovian: severe winter pollution episodes depend on preceding multi-day stagnation, secondary aerosol chemistry, and nocturnal boundary layer trapping. EcoTwin feeds 48 consecutive hours of 28 input channels (meteorology, criteria pollutants, rolling 6h/24h statistics, 3h deltas, cyclical time, and two upwind transport features) through a 32-hidden-unit GRU with Dropout(0.2), capturing diurnal rhythm and physical inertia.',
       features: [
         '48-Hour continuous historical lookback (T_in = 48)',
-        '26 Multi-variate chemical & meteorological features',
+        '28 input channels (26 features + 2 upwind transport features)',
         '1-Layer GRU (H = 32 hidden units, Dropout = 0.2)',
-        'Captures nocturnal boundary layer trapping'
+        'Captures the diurnal rhythm and recent history'
       ]
     },
     {
@@ -66,12 +69,12 @@ export const StoryMechanism: React.FC = () => {
       badge: 'ATTENTION CORE',
       headline: '4-Head Self-Attention with Residual Normalization',
       formula: 'c_temp = LayerNorm(MHA(Q, K, V) + g)_{[:, -1, :]}  [4 heads, d_k = 8]',
-      lead: 'Not all 48 historical hours exert equal influence on future particulate dispersion. Rather than using simple pooling or RNN hidden state flattening, EcoTwin deploys a 4-head Multihead Self-Attention layer (embed_dim=32, num_heads=4). Attention heads attend across the entire 48-hour sequence, dynamically capturing immediate physical inertia (-1h to -6h), 24h diurnal cycles, and 48h synoptic background trends before residual addition and LayerNorm extraction.',
+      lead: 'Not all 48 historical hours exert equal influence on future particulate dispersion. Rather than using simple pooling or RNN hidden state flattening, EcoTwin deploys a 4-head Multihead Self-Attention layer (embed_dim=32, num_heads=4). Attention heads look across the entire 48-hour sequence before residual addition and LayerNorm extraction. In practice the learned attention is spread fairly evenly over the hours.',
       features: [
         '4 Parallel attention heads (num_heads = 4, d_k = 8)',
         'Full 48-hour sequence self-attention (Q = K = V = g)',
         'Residual skip connection & LayerNorm extraction',
-        'Captures inertia (-1h to -6h) & diurnal cycles (-24h)'
+        'Looks across all 48 hours (learned weights are fairly even)'
       ]
     },
     {
@@ -79,12 +82,12 @@ export const StoryMechanism: React.FC = () => {
       id: 'forecast',
       title: 'Tri-Representation Decoder & Gated Anchor',
       badge: 'FORECAST DECODER',
-      headline: 'Climatology A_fc Fusion, Gated Anchor & Volatility Huber Loss',
-      formula: 'ŷ = MLP([c_temp, c_spatial^A_fc, e_time]) + α_anchor · y_0',
-      lead: 'At test inference time, future hourly wind fields are unavailable. EcoTwin resolves this bottleneck by concatenating temporal context (32d) with spatial wind climatology (A_fc, 32d) and future cyclical time embeddings (32d) into a 96-dimensional MLP decoder (96 → 32 → 1). A learned Gated Anchor (α_anchor · y_0, initialized decaying 1.0 → 0.3) tethers near-term predictions to the live ground truth, while a volatility-weighted Huber loss (0.56× to 1.87×) tames rapid winter smog surges.',
+      headline: 'Forecast-Wind Graph A_fc, Gated Anchor & Volatility Huber Loss',
+      formula: 'ŷ = MLP([c_temp, c_spatial^A_fc, e_future]) + α_anchor · y_0',
+      lead: 'For the 24 future hours the model receives the day-old forecast wind and a forecast-wind graph (A_fc). EcoTwin concatenates temporal context (32d) with the forecast-graph context (32d) and a future embedding of calendar and forecast wind (32d) into a 96-dimensional MLP decoder (96 → 32 → 1). A learned Gated Anchor (α_anchor · y_0, initialized decaying 1.0 → 0.3) tethers near-term predictions to the last observed reading, while a volatility-weighted Huber loss (0.56× to 1.87×) gives rapid winter surges more weight.',
       features: [
         'Tri-representation context fusion (96-dim MLP decoder)',
-        'Wind climatology graph A_fc for future horizons',
+        'Forecast-wind graph A_fc for the future hours',
         'Learned Gated Anchor (α decaying 1.0 → 0.3 · y_0)',
         'Volatility Huber loss (0.56× to 1.87× swing weighting)'
       ]
@@ -102,7 +105,7 @@ export const StoryMechanism: React.FC = () => {
       {/* 1. Dramatic Ambient Background Layers */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-15 mix-blend-luminosity scale-105 pointer-events-none transition-transform duration-1000"
-        style={{ backgroundImage: `url('/images/environmental_interaction.jpg')` }}
+        style={{ backgroundImage: `url('${asset('/images/environmental_interaction.jpg')}')` }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-[#0B0E14] via-[#0B0E14]/90 to-[#0B0E14] pointer-events-none" />
       
@@ -130,7 +133,7 @@ export const StoryMechanism: React.FC = () => {
             </div>
             <span className="text-slate-600 hidden sm:inline">/</span>
             <span className="text-slate-400 font-mono text-xs uppercase tracking-widest hidden sm:inline">
-              Physics-Informed WA-TGCN v2 Neural Pipeline
+              Physics-Informed WA-TGCN Neural Pipeline
             </span>
           </div>
 
@@ -668,7 +671,7 @@ export const StoryMechanism: React.FC = () => {
                     VOLATILITY HUBER LOSS: w_vol · Huber(y - ŷ, δ=1.0) with w_vol ∈ [0.56, 1.87]
                   </text>
                   <text x="26" y="274" fill="#CBD5E1" fontSize="8" fontFamily="monospace">
-                    • Upweights sudden rapid plume shifts · Verified Volatile Regime RMSE: <tspan fill="#10B981" fontWeight="bold">90.87 µg/m³</tspan> vs 97.76+ baselines
+                    • Upweights sudden rapid plume shifts · Volatile-regime RMSE: <tspan fill="#10B981" fontWeight="bold">{mc?.rmse_by_regime.Volatile.toFixed(2) ?? '—'} µg/m³</tspan> vs {mc?.persistence_by_regime.Volatile.toFixed(2) ?? '—'} persistence
                   </text>
                 </svg>
               )}
@@ -679,17 +682,17 @@ export const StoryMechanism: React.FC = () => {
             <div className="p-3.5 rounded-xl bg-[#0B0E14] border border-[#232A3B] flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
               <span className="text-slate-400 font-semibold flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
-                <span>Verified Test Metrics:</span>
+                <span>Test metrics:</span>
               </span>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] sm:text-xs">
                 <span className="px-2 py-0.5 rounded bg-[#181E2B] text-[#ECC138] font-bold border border-[#232A3B]">
-                  MAE: 39.69 µg/m³
+                  MAE: {mc?.overall.mae.toFixed(2) ?? '—'} µg/m³
                 </span>
                 <span className="px-2 py-0.5 rounded bg-[#181E2B] text-[#38BDF8] font-bold border border-[#232A3B]">
-                  RMSE: 60.92 µg/m³
+                  RMSE: {mc?.overall.rmse.toFixed(2) ?? '—'} µg/m³
                 </span>
                 <span className="px-2 py-0.5 rounded bg-[#181E2B] text-[#10B981] font-bold border border-[#232A3B]">
-                  R²: 0.6341
+                  R²: {mc?.overall.r2.toFixed(4) ?? '—'}
                 </span>
               </div>
             </div>
@@ -701,9 +704,9 @@ export const StoryMechanism: React.FC = () => {
         {/* 5. Section Footer with Direct Link into Digital Twin Studio */}
         <div className="pt-6 border-t border-[#232A3B] flex flex-wrap items-center justify-between gap-4 text-xs font-mono text-slate-500">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-slate-400 font-semibold">WA-TGCN v2 Architecture</span>
+            <span className="text-slate-400 font-semibold">WA-TGCN Architecture</span>
             <span>·</span>
-            <span>7-Seed Checked Ensemble</span>
+            <span>{mc?.seeds ?? 5}-Seed Ensemble</span>
             <span>·</span>
             <span>37 CPCB Stations</span>
             <span>·</span>

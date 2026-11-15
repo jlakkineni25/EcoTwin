@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTwinStore } from '../../store/useTwinStore';
+import { useModelCard } from '../../hooks/useTwinData';
 import { 
   ChevronRight, 
   ChevronLeft, 
@@ -25,6 +26,8 @@ export const PanelWalkthrough: React.FC = () => {
     setScenarioKey,
     setSelectedStationId,
   } = useTwinStore();
+  const { data: mc } = useModelCard();
+  const bench = (k: string) => mc?.benchmarks.find((b) => b.key === k)?.rmse.toFixed(2) ?? '—';
 
   if (!isDemoActive) return null;
 
@@ -32,7 +35,7 @@ export const PanelWalkthrough: React.FC = () => {
     {
       step: 1,
       title: '1. Spatial Digital Twin & Dynamic Advection A(t)',
-      badge: 'Core Novelty (RG6)',
+      badge: 'Core Idea (RG6)',
       icon: Map,
       stationId: 0,
       setup: () => {
@@ -43,7 +46,7 @@ export const PanelWalkthrough: React.FC = () => {
         setScenarioKey('baseline');
       },
       summary:
-        'Traditional AQI models use static Euclidean distance graphs. EcoTwin continuously recomputes a dynamic, physics-grounded adjacency matrix A(t) from hourly wind vectors (u, v). Stations only influence downstream neighbours.',
+        'Many graph-based AQI models use fixed distance graphs. EcoTwin continuously recomputes a dynamic, physics-grounded adjacency matrix A(t) from hourly wind vectors (u, v). Stations only influence downstream neighbours.',
       talkingPoints: [
         'Notice the directed, pulsing advection arrows pointing downwind in luminous gold.',
         'When wind shifts, graph edges dynamically re-wire across Delhi’s 37 CPCB stations.',
@@ -52,8 +55,8 @@ export const PanelWalkthrough: React.FC = () => {
     },
     {
       step: 2,
-      title: '2. 24-Hour Horizon & Confidence Fan Chart',
-      badge: 'Uncertainty Quantification',
+      title: '2. 24-Hour Horizon & Prediction Intervals',
+      badge: 'Uncertainty',
       icon: TrendingUp,
       stationId: 0,
       setup: () => {
@@ -61,11 +64,11 @@ export const PanelWalkthrough: React.FC = () => {
         setActiveStudioView('forecast');
       },
       summary:
-        'Point forecasts are insufficient for public health decisions. EcoTwin displays median forecasts alongside 80% and 95% confidence intervals generated from our 7-seed WA-TGCN ensemble.',
+        'A single number is not enough for health decisions. EcoTwin shows the forecast with 80% and 95% prediction intervals, calibrated on the model\'s own errors on validation data.',
       talkingPoints: [
-        'Uncertainty band naturally expands over longer horizons (+1h: ±24 µg/m³ to +24h: ±40 µg/m³).',
-        'Direct threshold breach probability (e.g., "78% probability of exceeding CPCB limit by 19:00").',
-        'Includes real ground truth comparison overlay for held-out test data.',
+        'On held-out test data the 80% interval held 82% of the time and the 95% interval 97%.',
+        'Each hour shows the chance of exceeding the CPCB limit of 60 µg/m³.',
+        'The white line is the observed value of the held-out window (partly filled in where the sensor had gaps).',
       ],
     },
     {
@@ -79,16 +82,16 @@ export const PanelWalkthrough: React.FC = () => {
         setActiveStudioView('why');
       },
       summary:
-        'Transparent reasoning behind neural network outputs. We extract temporal attention weights and feature SHAP attributions into a faithful deterministic template without AI hallucination.',
+        'Reasoning behind the forecast from the final model itself: exact Shapley contributions of eight groups of inputs and the temporal attention, turned into a plain-language sentence.',
       talkingPoints: [
-        'Plain-language synthesis tells evaluators exactly which factors pushed the forecast up or down.',
-        '48-hour attention strip highlights crucial historical accumulation windows.',
-        'Identifies the top upwind monitoring station feeding particulate matter.',
+        'The sentence names the inputs that push this forecast up and down the most, from exact Shapley values.',
+        'The 48-hour attention strip shows where the model looks; it is spread fairly evenly, so it is not the same as importance.',
+        'Wind links lists the strongest edges of the hourly wind graph into the station; the Wind graph bar shows how much the graph really contributes.',
       ],
     },
     {
       step: 4,
-      title: '4. Counterfactual "What-If" Wind Engine',
+      title: '4. "What-If" Scenario Lab',
       badge: 'Digital Twin Simulation',
       icon: Compass,
       stationId: 0,
@@ -98,28 +101,28 @@ export const PanelWalkthrough: React.FC = () => {
         setScenarioKey('wind_x2');
       },
       summary:
-        'Simulate atmospheric meteorological interventions. Evaluators can turn the compass dial or slide wind speed to inspect network-wide dispersion responses.',
+        'Re-run the model with changed conditions. Evaluators can slide the forecast wind speed or pick a scenario (emission cuts, sensor outages, wind graph off).',
       talkingPoints: [
         'Instantaneous split comparison: baseline versus counterfactual scenario.',
-        'Calculates Δ Peak Concentration and shifts in CPCB breach lead times in real time.',
-        'Test cases include "Wind Doubled", "NW Stubble Smoke Inflow", and "Wind Reversal".',
+        'Shows the change in the 24-hour peak and the first hour above 60 µg/m³ for each scenario (precomputed by the model).',
+        'Scenarios include wind speed 0.25x to 2x, wind from the north-west, wind graph off, emission cuts and sensor outages.',
       ],
     },
     {
       step: 5,
-      title: '5. Academic Credibility & Benchmarks',
-      badge: 'Scientific Rigor',
+      title: '5. Evaluation & Benchmarks',
+      badge: 'Evaluation',
       icon: Award,
       stationId: 0,
       setup: () => {
         document.getElementById('evaluations')?.scrollIntoView({ behavior: 'smooth' });
       },
       summary:
-        'Empirical validation against rigorous academic baselines on held-out test data from Jan 2024 to Apr 2026 across 37 stations with zero data leakage.',
+        'Tested against baselines on held-out data from Dec 2025 to Apr 2026 across 37 stations, with a chronological split.',
       talkingPoints: [
-        'WA-TGCN (RMSE 60.92, R² 0.634) systematically outperforms Static-GCN (61.73), No-Graph (62.18), and Persistence (83.87).',
-        'Largest gains observed during volatile weather transitions (RMSE 90.87 vs 97.76+).',
-        'Full pipeline audit: 37/37 stations verified, 0% residual NaN, 0.31 ms inference latency.',
+        `WA-TGCN final model (RMSE ${mc?.overall.rmse.toFixed(2) ?? '—'}, R² ${mc?.overall.r2.toFixed(3) ?? '—'}) is ${mc?.improvement_vs_persistence_pct ?? '—'}% below persistence (${mc?.persistence.rmse.toFixed(2) ?? '—'}). Static-GCN (${bench('static')}) and the graph-free model (${bench('none')}) are within seed noise.`,
+        `The volatile third of windows holds most of the error (RMSE ${mc?.rmse_by_regime.Volatile.toFixed(2) ?? '—'} against ${mc?.persistence_by_regime.Volatile.toFixed(2) ?? '—'} for persistence).`,
+        `37 stations, gaps in the readings filled by imputation, ${mc?.latency_ms_per_model.toFixed(2) ?? '—'} ms per model per window.`,
       ],
     },
   ];

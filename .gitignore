@@ -61,3 +61,10 @@ v2_clean/ecotwin_outputs/models/watgcn_v5none_*.pt
 v2_clean/ecotwin_outputs/models/watgcn_v5stat_*.pt
 v2_clean/ecotwin_outputs/models/watgcn_v6*.pt
 v2_clean/ecotwin_outputs/models/watgcn_v7*.pt
+
+# --- generated export folders (the front end copies what it needs into frontend/public/data via v2_clean/make_frontend_data.py) ---
+v2_clean/dashboard_export_dynadv/
+v2_clean/frontend_export_dynadv/
+
+# --- live data snapshot used for local development (the hosted site reads the live-data branch instead) ---
+frontend/public/data/live/

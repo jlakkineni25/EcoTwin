@@ -28,6 +28,7 @@ import {
   CloudFog,
   HeartHandshake
 } from 'lucide-react';
+import { asset } from '../../utils/paths';
 
 interface Props {
   station: Station;
@@ -572,7 +573,7 @@ export const HealthAdvisor: React.FC<Props> = ({
               </div>
               <div className="flex items-center gap-2 p-2 rounded-lg bg-[#0B0E14] border border-[#232A3B]">
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#C89B6D] shrink-0" />
-                <span>Pedestrian / Cycling: <b>N95 Mask Required</b></span>
+                <span>Pedestrian / Cycling: <b>N95 mask recommended</b></span>
               </div>
             </div>
           </div>
@@ -593,23 +594,23 @@ export const HealthAdvisor: React.FC<Props> = ({
             title="Open Interactive Delhi Satellite Airshed Map"
           >
             <img
-              src="/images/delhi-satellite-night.jpg"
+              src={asset('/images/delhi-satellite-night.jpg')}
               alt="Delhi Satellite Airshed Map"
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0B0E14] via-transparent to-transparent opacity-60"></div>
             <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-[#0B0E14]/85 backdrop-blur text-[8px] font-mono font-bold text-[#ECC138] border border-[#ECC138]/30">
-              RADAR
+              SATELLITE
             </div>
             <div className="absolute bottom-1 left-1.5 flex items-center gap-1 text-[8px] font-mono text-white">
               <span className="w-1.5 h-1.5 rounded-full bg-[#ECC138] animate-ping"></span>
-              <span>Live 37 Nodes</span>
+              <span>37 Nodes</span>
             </div>
           </div>
           <div>
             <div className="text-xs font-mono uppercase text-[#ECC138] font-bold mb-1 flex items-center gap-1.5">
               <Map className="w-3.5 h-3.5 text-[#ECC138]" />
-              <span>Radar and Airshed Maps</span>
+              <span>Airshed Map</span>
             </div>
             <h4 className="text-base sm:text-lg font-display font-bold text-[#FFFDF8]">
               Delhi NCR Continuous Monitoring Network
@@ -630,6 +631,10 @@ export const HealthAdvisor: React.FC<Props> = ({
           </button>
         )}
       </div>
+
+      <p className="text-[10px] text-slate-500 leading-snug">
+        General guidance by air pollution level, not medical advice. If you have breathing difficulty or chest tightness, reduce exertion and consult a physician.
+      </p>
     </div>
   );
 };

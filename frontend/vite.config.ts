@@ -4,6 +4,8 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Address the site is served from. '/' locally; the GitHub Pages build sets VITE_BASE=/EcoTwin/
+  base: process.env.VITE_BASE || '/',
   plugins: [react()],
   resolve: {
     alias: {

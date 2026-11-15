@@ -1,104 +1,80 @@
 import { StationForecast, Station, ExplainabilityData, AttributionFactor } from '../types';
 
-export function generateStationAttribution(
+// What each of the eight Shapley "players" of the final model means (notebook 42)
+const PLAYER_INFO: Record<string, { category: AttributionFactor['category']; phrase: string; description: string }> = {
+  'PM2.5 history': { category: 'History', phrase: 'recent PM2.5 history', description: 'Recent PM2.5 levels at this station and their rolling statistics' },
+  'Other pollutants': { category: 'Chemistry', phrase: 'the other pollutants', description: 'PM10, NO2, SO2, CO and O3 readings' },
+  'Weather (T, RH)': { category: 'Weather', phrase: 'temperature and humidity', description: 'Temperature and relative humidity' },
+  'Wind (inputs + forecast)': { category: 'Wind', phrase: 'the wind', description: 'Observed wind and the forecast wind for the next 24 hours' },
+  'City context': { category: 'Context', phrase: 'the city-wide level', description: 'City-wide mean and maximum PM2.5, and this station compared with them' },
+  'Calendar (input + future)': { category: 'Calendar', phrase: 'the time of day and season', description: 'Hour, weekday and month of the input window and the forecast hours' },
+  'Upwind PM2.5 (transport)': { category: 'Wind', phrase: 'PM2.5 at the upwind neighbours', description: 'PM2.5 at upwind neighbouring stations, taken at their travel-time lag' },
+  'Wind graph': { category: 'Wind', phrase: 'the wind graph', description: 'The hourly wind-driven links between stations (switched off = no neighbour exchange)' },
+};
+
+export const LIVE_EXPLAIN_MSG = 'Explanations are available in replay only: they are computed on the stored test days, not on live data.';
+
+const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`;
+
+/**
+ * Builds the explanation of one station's forecast from the REAL exports (one file per window, /data/explain/<window>.json):
+ *  - row: [baseline, forecast_mean, impact of each player in `players` order], exact Shapley values in ug/m3 on the mean 24 h forecast
+ *  - attention: the 48 attention weights (scaled by 10000)
+ * Nothing here is invented: when the data for a window is missing the result says so.
+ */
+export function buildAttribution(
   forecast: StationForecast,
   station: Station,
   allStations: Station[],
-  windEdges: [number, number, number][] | undefined
+  windEdges: [number, number, number][] | undefined,
+  players: string[] | undefined,
+  row: number[] | undefined,
+  attention: number[] | undefined,
+  loading = false,
+  unavailableMessage?: string
 ): ExplainabilityData {
-  const currentVal = forecast.current_pm25;
-  const peakVal = forecast.peak_predicted;
-  const delta = peakVal - currentVal;
-  const isRising = delta > 5;
-  const isDropping = delta < -5;
-
-  // Find incoming edges to this station: [source, target, weight] where target == station.id
-  const incoming = (windEdges || []).filter(([_, target]) => target === station.id);
-  incoming.sort((a, b) => b[2] - a[2]); // highest coupling weight first
-
+  // Strongest incoming links of the hourly wind graph at this window: [source, target, weight] with target == station
+  const incoming = (windEdges || []).filter(([, target]) => target === station.id);
+  incoming.sort((a, b) => b[2] - a[2]);
   const stationMap = new Map(allStations.map((s) => [s.id, s]));
-  const topUpwindStations = incoming.slice(0, 3).map(([src, _, weight]) => ({
+  const topUpwindStations = incoming.slice(0, 3).map(([src, , weight]) => ({
     id: src,
     name: stationMap.get(src)?.name || `Station ${src}`,
     weight: Math.round(weight * 100) / 100,
   }));
 
-  // Build deterministic plain-language template
-  let summarySentence = '';
-  const topUpwindName = topUpwindStations[0]?.name;
+  const attentionWeights = attention ? attention.map((v) => v / 10000) : [];
 
-  if (isRising) {
-    if (topUpwindName) {
-      summarySentence = `Forecast rising by +${Math.round(delta)} µg/m³ (peaking at ${Math.round(peakVal)} µg/m³) mainly due to active downwind transport from ${topUpwindName}, coupled with stagnant surface ventilation and evening diurnal accumulation.`;
-    } else {
-      summarySentence = `Forecast rising by +${Math.round(delta)} µg/m³ (peaking at ${Math.round(peakVal)} µg/m³) driven by low wind speeds trapping local emissions and strong 6-hour historical inertia.`;
-    }
-  } else if (isDropping) {
-    summarySentence = `Forecast decreasing by ${Math.round(Math.abs(delta))} µg/m³ over the horizon due to favorable wind dispersion and low incoming transport from upwind monitoring stations.`;
-  } else {
-    summarySentence = `Forecast maintaining a steady plateau near ${Math.round(currentVal)} µg/m³ (±8 µg/m³) with balanced advective inflow and steady diurnal background rates.`;
+  if (!players || !row || row.length < 2 + players.length) {
+    return {
+      summarySentence: unavailableMessage ?? (loading ? 'Loading the explanation…' : 'The explanation for this window is not available.'),
+      attentionWeights,
+      shapFactors: [],
+      topUpwindStations,
+      available: false,
+    };
   }
 
-  // 48h temporal attention weights (higher on recent -1h to -6h, -24h diurnal cycle, and -48h trend)
-  const attentionWeights: number[] = Array.from({ length: 48 }, (_, i) => {
-    const hoursAgo = 48 - i;
-    let weight = 0.05;
-    if (hoursAgo <= 6) weight += (7 - hoursAgo) * 0.12; // strong recent inertia
-    if (hoursAgo >= 22 && hoursAgo <= 26) weight += 0.18; // 24h diurnal cycle
-    if (hoursAgo >= 45) weight += 0.08; // synoptic baseline
-    return Math.min(Math.round(weight * 1000) / 1000, 1.0);
-  });
+  const baseline = row[0];
+  const forecastMean = row[1];
+  const shapFactors: AttributionFactor[] = players
+    .map((name, i) => ({
+      name,
+      category: PLAYER_INFO[name]?.category ?? 'Context',
+      impact: row[2 + i],
+      description: PLAYER_INFO[name]?.description ?? '',
+    }))
+    .sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
 
-  // Grouped SHAP factors
-  const shapFactors: AttributionFactor[] = [
-    {
-      name: 'Upwind Graph Coupling A(t)',
-      category: 'Transport',
-      impact: topUpwindName ? (isRising ? 28.4 : -14.2) : 6.1,
-      description: topUpwindName
-        ? `Spatial inflow from ${topUpwindName} via wind advection vector`
-        : 'Isolated local cell with calm perimeter coupling',
-    },
-    {
-      name: 'Surface Wind Speed & Direction',
-      category: 'Meteorology',
-      impact: isRising ? 19.8 : -22.5,
-      description: isRising
-        ? 'Low surface wind (< 2.2 m/s) impeding dispersion'
-        : 'Sustained advective ventilation clearing particulate column',
-    },
-    {
-      name: 'Recent 6h Historical Inertia',
-      category: 'Inertia',
-      impact: currentVal > 150 ? 32.1 : 12.4,
-      description: `Baseline concentration momentum established at ${Math.round(currentVal)} µg/m³`,
-    },
-    {
-      name: 'Diurnal Boundary Layer Cycle',
-      category: 'Diurnal',
-      impact: isRising ? 14.5 : -8.3,
-      description: 'Atmospheric boundary layer height diurnal compression',
-    },
-    {
-      name: 'Rolling Volatility Signal',
-      category: 'Inertia',
-      impact: Math.abs(delta) > 30 ? 11.2 : 3.8,
-      description: 'v2 rolling standard deviation volatility feature weighting',
-    },
-    {
-      name: 'Regional Delhi Synoptic Mean',
-      category: 'Transport',
-      impact: 16.7,
-      description: 'Regional airshed background concentration offset',
-    },
-  ];
+  const phrase = (f: AttributionFactor) => PLAYER_INFO[f.name]?.phrase ?? f.name;
+  const up = [...shapFactors].sort((a, b) => b.impact - a.impact)[0];
+  const down = [...shapFactors].sort((a, b) => a.impact - b.impact)[0];
 
-  return {
-    summarySentence,
-    confidenceScore: 0.88,
-    attentionWeights,
-    shapFactors,
-    topUpwindStations,
-  };
+  let summarySentence = `The model's 24-hour mean forecast for ${station.name} is ${Math.round(forecastMean)} µg/m³. From a reference of ${Math.round(baseline)} µg/m³ (the forecast with every input at its training average)`;
+  if (up.impact > 0.5) summarySentence += `, the biggest push up comes from ${phrase(up)} (${signed(up.impact)} µg/m³)`;
+  if (down.impact < -0.5) summarySentence += `${up.impact > 0.5 ? ' and' : ','} the biggest pull down from ${phrase(down)} (${signed(down.impact)} µg/m³)`;
+  if (up.impact <= 0.5 && down.impact >= -0.5) summarySentence += ', no single input moves it by more than 0.5 µg/m³';
+  summarySentence += '.';
+
+  return { summarySentence, attentionWeights, shapFactors, topUpwindStations, baseline, forecastMean, available: true };
 }
-

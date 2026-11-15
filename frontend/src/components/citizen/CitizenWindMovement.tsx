@@ -3,14 +3,25 @@ import { describeWindMovement } from '../../utils/citizenZones';
 import { Wind, Compass, ArrowUp, Navigation, Info, Sparkles } from 'lucide-react';
 
 interface Props {
-  compassAngle: number;
-  windSpeedKmh?: number;
+  wind: { fromDeg: number; speedKmh: number } | null;
 }
 
 export const CitizenWindMovement: React.FC<Props> = ({
-  compassAngle,
-  windSpeedKmh = 8.4,
+  wind,
 }) => {
+  if (!wind) {
+    return (
+      <div className="bg-[#121620] border-2 border-[#232A3B] rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col justify-center h-full">
+        <div className="flex items-center gap-2 mb-2">
+          <Wind className="w-4 h-4 text-cyan-400" />
+          <h2 className="text-base sm:text-lg font-bold text-white">Where is the Smoke Moving?</h2>
+        </div>
+        <p className="text-xs text-slate-400">Wind data is not available for this hour.</p>
+      </div>
+    );
+  }
+  const compassAngle = wind.fromDeg;
+  const windSpeedKmh = Math.round(wind.speedKmh * 10) / 10;
   const windInfo = describeWindMovement(compassAngle, windSpeedKmh);
 
   return (
@@ -26,7 +37,7 @@ export const CitizenWindMovement: React.FC<Props> = ({
           </div>
           <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            <span>{windInfo.directionText.split(' ')[0]} Breeze</span>
+            <span>{windSpeedKmh < 3.6 ? 'Calm air' : `${windInfo.directionText.split(' ')[0]} wind`}</span>
           </span>
         </div>
 
@@ -93,7 +104,7 @@ export const CitizenWindMovement: React.FC<Props> = ({
               {/* Rotating Arrow with smooth transition */}
               <div
                 className="w-14 h-14 flex items-center justify-center transition-transform duration-700 ease-out"
-                style={{ transform: `rotate(${compassAngle}deg)` }}
+                style={{ transform: `rotate(${(compassAngle + 180) % 360}deg)` }}
               >
                 <div className="flex flex-col items-center">
                   <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[16px] border-b-cyan-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]" />
@@ -140,7 +151,9 @@ export const CitizenWindMovement: React.FC<Props> = ({
       <div className="mt-3 pt-3 border-t border-[#232A3B]/60 flex items-center gap-2 text-[11px] text-slate-400">
         <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
         <span>
-          Downwind neighborhoods in East & Central Delhi face heavier smoke accumulation today.
+          {windSpeedKmh < 3.6
+            ? 'Little wind right now, so air is not being carried far.'
+            : `Air is moving toward ${windInfo.destinationText}.`}
         </span>
       </div>
     </div>

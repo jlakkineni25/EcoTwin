@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Station, StationForecast } from '../../types';
-import { CPCB_CATEGORIES, HORIZON_UNCERTAINTY_SIGMA, computeBreachProbability } from '../../utils/aqi';
+import { CPCB_CATEGORIES, calibratedInterval, computeBreachProbability } from '../../utils/aqi';
+import { useCalibration } from '../../hooks/useTwinData';
 import { AlertTriangle, Clock, TrendingUp, ShieldCheck, MapPin, Gauge } from 'lucide-react';
 
 interface Props {
@@ -17,6 +18,7 @@ export const StationForecastPanel: React.FC<Props> = ({
   timestamp,
   isEmbedded = false,
 }) => {
+  const { data: cal } = useCalibration();
   const currentVal = Math.round(forecast.current_pm25);
   const peakVal = Math.round(forecast.peak_predicted);
   const category = forecast.current_aqi;
@@ -42,20 +44,20 @@ export const StationForecastPanel: React.FC<Props> = ({
     const band95: number[] = [];
     const breachProbabilities: number[] = [];
 
-    medians.forEach((pred, i) => {
-      const sigma = HORIZON_UNCERTAINTY_SIGMA[i] || 38;
-      const l95 = Math.max(0, pred - 1.96 * sigma);
-      const l80 = Math.max(0, pred - 1.28 * sigma);
-      const u80 = pred + 1.28 * sigma;
-      const u95 = pred + 1.96 * sigma;
+    // calibrated intervals and breach probabilities come from the model's real validation errors (calibration.json)
+    if (cal) {
+      medians.forEach((pred, i) => {
+        const [l95, u95] = calibratedInterval(pred, i, cal, 95);
+        const [l80, u80] = calibratedInterval(pred, i, cal, 80);
 
-      lower95.push(Math.round(l95));
-      lower80.push(Math.round(l80));
-      band80.push(Math.round(u80 - l80));
-      band95.push(Math.round(u95 - l95));
+        lower95.push(Math.round(l95));
+        lower80.push(Math.round(l80));
+        band80.push(Math.round(u80) - Math.round(l80));
+        band95.push(Math.round(u95) - Math.round(l95));
 
-      breachProbabilities.push(computeBreachProbability(pred, i, 60.0));
-    });
+        breachProbabilities.push(computeBreachProbability(pred, i, cal, 60.0));
+      });
+    }
 
     return {
       medians: medians.map((v) => Math.round(v)),
@@ -66,10 +68,10 @@ export const StationForecastPanel: React.FC<Props> = ({
       band95,
       breachProbabilities,
     };
-  }, [forecast]);
+  }, [forecast, cal]);
 
-  // Max breach probability in next 6h
-  const next6hMaxProb = Math.max(...confidenceData.breachProbabilities.slice(0, 6));
+  // Highest hourly chance of exceeding 60 ug/m3 in the next 6 h (null until the calibration has loaded)
+  const next6hMaxProb = confidenceData.breachProbabilities.length ? Math.max(...confidenceData.breachProbabilities.slice(0, 6)) : null;
 
   // ECharts Option
   const chartOption = useMemo(() => {
@@ -83,7 +85,7 @@ export const StationForecastPanel: React.FC<Props> = ({
         formatter: (params: any[]) => {
           const hourLabel = params[0]?.axisValue;
           const idx = hours.indexOf(hourLabel);
-          const prob = confidenceData.breachProbabilities[idx] ?? 0;
+          const prob = confidenceData.breachProbabilities[idx];
           let html = `<div class="font-bold border-b border-[#232A3B] pb-1 mb-1 text-[#FFFDF8]">+${idx + 1}h (${hourLabel})</div>`;
           params.forEach((p) => {
             if (p.seriesName === 'Predicted Median' || p.seriesName === 'Actual Observed') {
@@ -93,14 +95,16 @@ export const StationForecastPanel: React.FC<Props> = ({
               </div>`;
             }
           });
-          html += `<div class="mt-1 pt-1 border-t border-[#232A3B] text-[11px] text-[#ECC138] font-mono">
-            Breach (>60 µg/m³): ${prob}% probability
-          </div>`;
+          if (prob !== undefined) {
+            html += `<div class="mt-1 pt-1 border-t border-[#232A3B] text-[11px] text-[#ECC138] font-mono">
+              Chance of exceeding 60 µg/m³: ${prob}%
+            </div>`;
+          }
           return html;
         },
       },
       legend: {
-        data: ['Actual Observed', 'Predicted Median', '80% Interval', '95% Interval'],
+        data: [...(confidenceData.actuals.length ? ['Actual Observed'] : []), 'Predicted Median', '80% Interval', '95% Interval'],
         textStyle: { color: '#94A3B8', fontSize: 11 },
         top: 0,
         right: 10,
@@ -255,7 +259,7 @@ export const StationForecastPanel: React.FC<Props> = ({
             <Gauge className="w-3.5 h-3.5 text-[#ECC138] shrink-0" />
             <span>24h Multi-Horizon Fan Chart</span>
           </span>
-          <span className="text-slate-400">7-Seed Uncertainty Bands</span>
+          <span className="text-slate-400">Calibrated intervals</span>
         </div>
       )}
 
@@ -268,6 +272,12 @@ export const StationForecastPanel: React.FC<Props> = ({
             opts={{ renderer: 'canvas' }}
           />
         </div>
+        {cal && (
+          <p className="mt-1 text-[10px] text-slate-500 leading-snug">
+            Intervals come from the model's real errors on validation data ({cal.validation_windows.toLocaleString()} windows). On held-out test data the 80% interval held{' '}
+            {Math.round(cal.test_coverage_80 * 100)}% of the time and the 95% interval {Math.round(cal.test_coverage_95 * 100)}%.
+          </p>
+        )}
       </div>
 
       {/* Uncertainty & Telemetry Row */}
@@ -282,7 +292,7 @@ export const StationForecastPanel: React.FC<Props> = ({
                 CPCB Breach: +{forecast.hours_to_breach_cpcb}h
               </div>
               <div className="text-[11px] text-slate-400 truncate mt-0.5">
-                Peak: <span className="font-mono text-[#FFFDF8] font-bold">{peakVal} µg/m³</span> ({next6hMaxProb}% prob)
+                Peak: <span className="font-mono text-[#FFFDF8] font-bold">{peakVal} µg/m³</span>{next6hMaxProb !== null && ` (up to ${next6hMaxProb}% chance in the next 6 h)`}
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useInView } from '../../hooks/useInView';
+import { useModelCard } from '../../hooks/useTwinData';
 import { 
   AlertTriangle, 
   Wind, 
@@ -13,8 +14,13 @@ import {
   XCircle,
   Sparkles
 } from 'lucide-react';
+import { asset } from '../../utils/paths';
 
 export const StoryChallenge: React.FC = () => {
+  const { data: mc } = useModelCard();
+  const staticRmse = mc?.benchmarks.find((b) => b.key === 'static')?.rmse;
+  // share of the final model's total squared error that falls in the most volatile third of windows
+  const volShare = mc ? (100 * mc.rmse_by_regime.Volatile ** 2) / (mc.rmse_by_regime.Stable ** 2 + mc.rmse_by_regime.Moderate ** 2 + mc.rmse_by_regime.Volatile ** 2) : null;
   const { ref, isInView } = useInView({ threshold: 0.12 });
 
   const scrollToDilemma = () => {
@@ -57,7 +63,7 @@ export const StoryChallenge: React.FC = () => {
       {/* 1. Dramatic Ambient Background Layers */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-15 mix-blend-luminosity scale-105 pointer-events-none transition-transform duration-1000"
-        style={{ backgroundImage: `url('/images/city_haze.jpg')` }}
+        style={{ backgroundImage: `url('${asset('/images/city_haze.jpg')}')` }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-[#0B0E14] via-[#0B0E14]/90 to-[#0B0E14] pointer-events-none" />
       
@@ -120,7 +126,7 @@ export const StoryChallenge: React.FC = () => {
             {/* Background Environmental Aerial Silhouette */}
             <div 
               className="absolute inset-0 bg-cover bg-center opacity-10 mix-blend-luminosity group-hover:scale-105 transition-transform duration-1000 pointer-events-none"
-              style={{ backgroundImage: `url('/images/air_pollution_threat.png')` }}
+              style={{ backgroundImage: `url('${asset('/images/air_pollution_threat.png')}')` }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#121620] via-[#121620]/80 to-transparent pointer-events-none" />
 
@@ -183,15 +189,15 @@ export const StoryChallenge: React.FC = () => {
               {/* Massive 77.9% Stat */}
               <div className="space-y-1">
                 <div className="text-5xl sm:text-6xl lg:text-7xl font-display font-black tracking-tight text-[#EF4444]">
-                  77.9<span className="text-[#FFFDF8]">%</span>
+                  {volShare !== null ? volShare.toFixed(1) : '—'}<span className="text-[#FFFDF8]">%</span>
                 </div>
                 <div className="text-sm font-mono uppercase tracking-wider text-slate-200 font-bold">
-                  Error Concentration in Static Models
+                  Error Concentration in the Most Volatile Third
                 </div>
               </div>
 
               <p className="text-xs sm:text-sm text-slate-300 font-light leading-relaxed">
-                Conventional Graph Neural Networks suffer <strong className="text-white">77.9% of their total prediction errors</strong> specifically during weather transitions and wind shifts. Because fixed Euclidean graphs cannot sever calm links or align with downwind plumes, they propagate false spatial features.
+                In the test set, the third of windows where PM2.5 swings the most produces <strong className="text-white">{volShare !== null ? volShare.toFixed(1) : '—'}% of the final model's total squared error</strong>. Fixed-graph and graph-free models show the same pattern: the hardest weather transitions and wind shifts dominate the error.
               </p>
             </div>
 
@@ -206,7 +212,7 @@ export const StoryChallenge: React.FC = () => {
                   <div className="text-[10px] text-slate-400 mt-0.5">Fixed distance adjacency</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-white font-bold">RMSE 61.73</div>
+                  <div className="text-white font-bold">RMSE {staticRmse?.toFixed(2) ?? '—'}</div>
                   <div className="text-[10px] text-slate-500">µg/m³ error</div>
                 </div>
               </div>
@@ -220,8 +226,8 @@ export const StoryChallenge: React.FC = () => {
                   <div className="text-[10px] text-slate-400 mt-0.5">Dynamic wind graph A(t)</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[#ECC138] font-bold">RMSE 60.92</div>
-                  <div className="text-[10px] text-slate-400">µg/m³ (Lowest error)</div>
+                  <div className="text-[#ECC138] font-bold">RMSE {mc?.overall.rmse.toFixed(2) ?? '—'}</div>
+                  <div className="text-[10px] text-slate-400">µg/m³ (within seed noise of static)</div>
                 </div>
               </div>
             </div>

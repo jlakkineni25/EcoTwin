@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useInView } from '../../hooks/useInView';
+import { Station, StationForecast } from '../../types';
+import { getAQIColor } from '../../utils/aqi';
 import { 
   Wind, 
   Compass, 
@@ -11,12 +13,15 @@ import {
   Layers,
   Sparkles
 } from 'lucide-react';
+import { asset } from '../../utils/paths';
 
 interface StoryHeroProps {
   onSwitchVariant?: () => void;
+  stations?: Station[];
+  currentFrame?: { stations: StationForecast[] };
 }
 
-export const StoryHero: React.FC<StoryHeroProps> = ({ onSwitchVariant }) => {
+export const StoryHero: React.FC<StoryHeroProps> = ({ onSwitchVariant, stations, currentFrame }) => {
   const { ref, isInView } = useInView({ threshold: 0.1 });
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -147,57 +152,23 @@ export const StoryHero: React.FC<StoryHeroProps> = ({ onSwitchVariant }) => {
     };
   }, [isInView, mousePos]);
 
-  // Key monitoring hotspots pinned to satellite map with staggered radar pulse timing
-  const hotspots = [
-    {
-      id: 'anand-vihar',
-      name: 'Anand Vihar',
-      aqi: '388 µg/m³',
-      status: 'Severe Inversion',
-      top: '38%',
-      left: '68%',
-      color: '#EF4444',
-      tag: 'East Delhi Hotspot',
-      pulseDelay: '0s',
-      pulseDur: '3.6s',
-    },
-    {
-      id: 'punjabi-bagh',
-      name: 'Punjabi Bagh',
-      aqi: '294 µg/m³',
-      status: 'Very Poor',
-      top: '46%',
-      left: '32%',
-      color: '#F97316',
-      tag: 'West Industrial Corridor',
-      pulseDelay: '0.9s',
-      pulseDur: '4.0s',
-    },
-    {
-      id: 'rk-puram',
-      name: 'R K Puram',
-      aqi: '248 µg/m³',
-      status: 'Very Poor',
-      top: '64%',
-      left: '46%',
-      color: '#ECC138',
-      tag: 'South Airshed Core',
-      pulseDelay: '1.8s',
-      pulseDur: '4.2s',
-    },
-    {
-      id: 'igi-airport',
-      name: 'IGI Airport T3',
-      aqi: '198 µg/m³',
-      status: 'Poor',
-      top: '72%',
-      left: '24%',
-      color: '#ECC138',
-      tag: 'Upwind Gateway',
-      pulseDelay: '2.7s',
-      pulseDur: '3.8s',
-    }
+  // Four monitoring stations pinned to the satellite map; their level and category come from the loaded window
+  const hotspotBase = [
+    { id: 'anand-vihar', name: 'Anand Vihar', stationName: 'Anand Vihar', top: '38%', left: '68%', tag: 'East Delhi', pulseDelay: '0s', pulseDur: '3.6s' },
+    { id: 'punjabi-bagh', name: 'Punjabi Bagh', stationName: 'Punjabi Bagh', top: '46%', left: '32%', tag: 'West Delhi', pulseDelay: '0.9s', pulseDur: '4.0s' },
+    { id: 'rk-puram', name: 'R K Puram', stationName: 'R K Puram', top: '64%', left: '46%', tag: 'South Delhi', pulseDelay: '1.8s', pulseDur: '4.2s' },
+    { id: 'igi-airport', name: 'IGI Airport T3', stationName: 'IGI Airport (T3)', top: '72%', left: '24%', tag: 'Airport area', pulseDelay: '2.7s', pulseDur: '3.8s' },
   ];
+  const hotspots = hotspotBase.map((h) => {
+    const st = stations?.find((x) => x.name === h.stationName);
+    const f = st ? currentFrame?.stations.find((x) => x.station_id === st.id) : undefined;
+    return {
+      ...h,
+      aqi: f ? `${Math.round(f.current_pm25)} µg/m³` : '—',
+      status: f ? f.current_aqi : 'No data',
+      color: f ? getAQIColor(f.current_aqi) : '#64748B',
+    };
+  });
 
   return (
     <section
@@ -209,7 +180,7 @@ export const StoryHero: React.FC<StoryHeroProps> = ({ onSwitchVariant }) => {
       {/* 1. Dramatic Atmospheric Background Layers */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-15 mix-blend-luminosity scale-105 pointer-events-none transition-transform duration-1000"
-        style={{ backgroundImage: `url('/images/air_pollution_hero.jpg')` }}
+        style={{ backgroundImage: `url('${asset('/images/air_pollution_hero.jpg')}')` }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-[#0B0E14]/90 via-[#0B0E14]/75 to-[#0B0E14] pointer-events-none" />
       
@@ -307,7 +278,7 @@ export const StoryHero: React.FC<StoryHeroProps> = ({ onSwitchVariant }) => {
               style={{ transitionDelay: '450ms' }}
             >
               <p className="text-base sm:text-lg lg:text-xl font-light text-slate-300 max-w-2xl leading-relaxed">
-                Every winter, regional surface wind vectors and nocturnal boundary layer compression trap 30 million citizens under hazardous aerosol smog. Static models fail to see the wind.
+                Every winter Delhi's air regularly passes the CPCB limit. Fixed-graph models cannot follow the wind that moves pollution between stations.
               </p>
 
               <p className="text-xs sm:text-sm font-mono text-[#C89B6D] max-w-2xl leading-relaxed">
@@ -395,7 +366,7 @@ export const StoryHero: React.FC<StoryHeroProps> = ({ onSwitchVariant }) => {
               {/* High-Resolution Night Satellite Focal Canvas */}
               <div className="relative h-[280px] sm:h-[350px] lg:h-[380px] xl:h-[400px] w-full rounded-b-2xl overflow-hidden bg-[#07090D]">
                 <img
-                  src="/images/delhi-satellite-night.jpg"
+                  src={asset('/images/delhi-satellite-night.jpg')}
                   alt="Delhi Satellite Night View - EcoTwin Digital Twin"
                   className="w-full h-full object-cover object-center scale-105 group-hover:scale-110 transition-transform duration-1000"
                 />

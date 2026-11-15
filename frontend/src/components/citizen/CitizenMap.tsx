@@ -19,7 +19,7 @@ interface Props {
   forecasts: StationForecast[];
   selectedStationId: number;
   onSelectStation: (id: number) => void;
-  compassAngle: number;
+  compassAngle?: number;
 }
 
 export const CitizenMap: React.FC<Props> = ({
@@ -213,7 +213,8 @@ export const CitizenMap: React.FC<Props> = ({
 
     stations.forEach((st) => {
       const forecast = forecastMap.get(st.id);
-      const pm25 = forecast ? Math.round(forecast.current_pm25) : 120;
+      if (!forecast) return; // no forecast for this station in this window: no marker
+      const pm25 = Math.round(forecast.current_pm25);
       const cat = forecast?.current_aqi || getAQICategory(pm25);
       const catCfg = CPCB_CATEGORIES[cat] || CPCB_CATEGORIES.Moderate;
       const isSelected = st.id === selectedStationId;
@@ -399,7 +400,8 @@ export const CitizenMap: React.FC<Props> = ({
           <div className="flex items-center gap-2 min-w-max">
             {stations.map((st) => {
               const forecast = forecastMap.get(st.id);
-              const pm25 = forecast ? Math.round(forecast.current_pm25) : 120;
+              if (!forecast) return null;
+              const pm25 = Math.round(forecast.current_pm25);
               const cat = forecast?.current_aqi || getAQICategory(pm25);
               const catCfg = CPCB_CATEGORIES[cat] || CPCB_CATEGORIES.Moderate;
               const isSelected = st.id === selectedStationId;

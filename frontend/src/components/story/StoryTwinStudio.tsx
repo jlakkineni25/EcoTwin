@@ -1,6 +1,9 @@
 import React, { useState, useMemo } from 'react';
+import { degToCompass } from '../../utils/wind';
 import { useInView } from '../../hooks/useInView';
-import { Station, StationForecast, WindEdgesMap, WhatIfData } from '../../types';
+import { useCalibration, useExplainIndex, useExplainWindow } from '../../hooks/useTwinData';
+import { DataSourceBadge } from '../layout/DataSourceBadge';
+import { Station, StationForecast, WindEdgesMap } from '../../types';
 import { useTwinStore, StudioView } from '../../store/useTwinStore';
 import { DigitalTwinMap } from '../map/DigitalTwinMap';
 import { StationForecastPanel } from '../station/StationForecastPanel';
@@ -9,7 +12,7 @@ import { WhatIfStudio } from '../whatif/WhatIfStudio';
 import { HealthAdvisor } from '../health/HealthAdvisor';
 import { TimelineScrubber } from '../layout/TimelineScrubber';
 import { CPCB_CATEGORIES, computeBreachProbability } from '../../utils/aqi';
-import { generateStationAttribution } from '../../utils/explainability';
+import { buildAttribution, LIVE_EXPLAIN_MSG } from '../../utils/explainability';
 import { 
   Activity,
   TrendingUp, 
@@ -40,7 +43,6 @@ interface Props {
   selectedForecast: StationForecast;
   totalWindows: number;
   windEdges?: WindEdgesMap;
-  whatIfData?: WhatIfData;
 }
 
 type MaximizeMode = 'split' | 'map' | 'inspector';
@@ -52,17 +54,21 @@ export const StoryTwinStudio: React.FC<Props> = ({
   selectedForecast,
   totalWindows,
   windEdges,
-  whatIfData,
 }) => {
   const { ref, isInView } = useInView({ threshold: 0.1 });
   const { 
     activeStudioView, 
     setActiveStudioView, 
     compassAngle, 
-    windSpeedMultiplier 
+    windSpeedMultiplier,
+    realWind,
+    dataMode 
   } = useTwinStore();
 
   const [maximizeMode, setMaximizeMode] = useState<MaximizeMode>('split');
+  const { data: cal } = useCalibration();
+  const { data: explainIndex } = useExplainIndex();
+  const { data: explainWin, isLoading: explainLoading } = useExplainWindow(dataMode === 'live' ? undefined : currentFrame.window_idx);
 
   // Compact inspector tab labels designed to fit neatly in one line
   const inspectorTabs: Array<{ id: StudioView; label: string; icon: React.FC<{ className?: string }> }> = [
@@ -93,18 +99,29 @@ export const StoryTwinStudio: React.FC<Props> = ({
   const catConfig = CPCB_CATEGORIES[category] || CPCB_CATEGORIES.Moderate;
   const leadHours = selectedForecast.hours_to_breach_cpcb;
 
-  // Max breach probability in next 6h
+  // Highest hourly chance of exceeding 60 ug/m3 in the next 6 h (calibrated; null until calibration.json has loaded)
   const next6hMaxProb = useMemo(() => {
-    const probs = selectedForecast.predicted_24h.slice(0, 6).map((pred, i) => 
-      computeBreachProbability(pred, i, 60.0)
+    if (!cal) return null;
+    const probs = selectedForecast.predicted_24h.slice(0, 6).map((pred, i) =>
+      computeBreachProbability(pred, i, cal, 60.0)
     );
     return Math.max(...probs, 0);
-  }, [selectedForecast]);
+  }, [selectedForecast, cal]);
 
   // Plain-Language Explainability Synthesis
   const attribution = useMemo(() => {
-    return generateStationAttribution(selectedForecast, selectedStation, stations, activeEdges);
-  }, [selectedForecast, selectedStation, stations, activeEdges]);
+    return buildAttribution(
+      selectedForecast,
+      selectedStation,
+      stations,
+      activeEdges,
+      explainIndex?.players,
+      explainWin?.r[selectedStation.id],
+      explainWin?.a[selectedStation.id],
+      explainLoading,
+      dataMode === 'live' ? LIVE_EXPLAIN_MSG : undefined
+    );
+  }, [selectedForecast, selectedStation, stations, activeEdges, explainIndex, explainWin, explainLoading, dataMode]);
 
   // 24-hour Sparkline SVG path for Overview card
   const sparklineSvg = useMemo(() => {
@@ -165,7 +182,7 @@ export const StoryTwinStudio: React.FC<Props> = ({
                 </div>
               </div>
               <p className="mt-1.5 text-xs sm:text-[13px] text-slate-400 font-light max-w-2xl leading-relaxed">
-                Persistent spatial airshed canvas synchronized with real-time multi-horizon neural telemetry.
+                {dataMode === 'live' ? "Live: the model's 24-hour forecasts from the latest station data." : "Replay of the model's 24-hour forecasts on held-out test windows."}
               </p>
             </div>
 
@@ -222,13 +239,16 @@ export const StoryTwinStudio: React.FC<Props> = ({
               <div className="flex items-center gap-1.5 text-slate-300">
                 <Network className="w-3.5 h-3.5 text-[#C89B6D]" />
                 <span className="text-slate-400">Couplings:</span>
-                <span className="text-[#FFFDF8] font-semibold">{activeEdges.length} Directed Links A(t)</span>
+                <span className="text-[#FFFDF8] font-semibold">Strongest {activeEdges.length} wind links</span>
               </div>
               <div className="h-3 w-px bg-[#232A3B] hidden md:block" />
               <div className="flex items-center gap-1.5 text-slate-300">
                 <Wind className="w-3.5 h-3.5 text-cyan-400" />
                 <span className="text-slate-400">Wind Advection:</span>
-                <span className="text-cyan-300 font-semibold">{compassAngle}° NW @ {windSpeedMultiplier.toFixed(1)}x</span>
+                <span className="text-cyan-300 font-semibold">
+                  {realWind ? `${compassAngle}° ${degToCompass(compassAngle)} · ${(realWind.speedMs * windSpeedMultiplier).toFixed(1)} m/s` : 'wind unavailable'}
+                  {realWind && windSpeedMultiplier !== 1 ? ` (${windSpeedMultiplier.toFixed(1)}x)` : ''}
+                </span>
               </div>
             </div>
 
@@ -243,6 +263,7 @@ export const StoryTwinStudio: React.FC<Props> = ({
                 <Clock className="w-3.5 h-3.5 text-slate-500" />
                 <span className="text-slate-300">{currentFrame.timestamp}</span>
               </div>
+              <DataSourceBadge timestamp={currentFrame.timestamp} />
             </div>
           </div>
         </div>
@@ -407,7 +428,7 @@ export const StoryTwinStudio: React.FC<Props> = ({
                           {leadHours !== null ? (
                             <span className="px-2 py-0.5 rounded-md bg-[#ECC138]/15 border border-[#ECC138]/40 text-[#ECC138] font-bold flex items-center gap-1 text-[11px] shrink-0">
                               <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />
-                              <span>Breach in +{leadHours}h ({next6hMaxProb}%)</span>
+                              <span>Breach in +{leadHours}h{next6hMaxProb !== null ? ` (up to ${next6hMaxProb}% chance in 6 h)` : ''}</span>
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded-md bg-[#C89B6D]/20 border border-[#C89B6D]/40 text-[#C89B6D] font-bold flex items-center gap-1 text-[11px] shrink-0">
@@ -475,7 +496,7 @@ export const StoryTwinStudio: React.FC<Props> = ({
                           <div className="mt-3 pt-2.5 border-t border-[#232A3B]/60 flex flex-wrap items-center gap-2">
                             <span className="text-[11px] font-mono text-slate-400 uppercase flex items-center gap-1 mr-1">
                               <ArrowDownRight className="w-3.5 h-3.5 text-[#ECC138]" />
-                              <span>Upwind:</span>
+                              <span>Wind links:</span>
                             </span>
                             {attribution.topUpwindStations.slice(0, 3).map((u) => (
                               <div
@@ -528,7 +549,6 @@ export const StoryTwinStudio: React.FC<Props> = ({
                       <WhatIfStudio
                         station={selectedStation}
                         baselineForecast={selectedForecast}
-                        whatIfData={whatIfData}
                         windowIdx={currentFrame.window_idx}
                         isEmbedded
                       />
@@ -572,10 +592,17 @@ export const StoryTwinStudio: React.FC<Props> = ({
 
         {/* Full-Bleed Docked Timeline Scrubber */}
         <div className="mt-5">
-          <TimelineScrubber
-            totalWindows={totalWindows}
-            currentTimestamp={currentFrame.timestamp}
-          />
+          {dataMode === 'live' ? (
+            <div className="w-full p-4 rounded-2xl bg-[#121620] border border-[#232A3B] shadow-xl flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-slate-300">
+              <span>Live view: the latest station readings and their 24-hour forecast. The timeline is available in replay mode.</span>
+              <DataSourceBadge timestamp={currentFrame.timestamp} />
+            </div>
+          ) : (
+            <TimelineScrubber
+              totalWindows={totalWindows}
+              currentTimestamp={currentFrame.timestamp}
+            />
+          )}
         </div>
       </div>
     </section>

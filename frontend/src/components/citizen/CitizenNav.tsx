@@ -69,7 +69,7 @@ export const CitizenNav: React.FC<Props> = ({
       {/* Top Banner Bar */}
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-3">
         {/* Brand & Citizen Badge */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-2">
             <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-[#ECC138] flex items-center justify-center text-base shadow-md shadow-emerald-500/20">
               🌱
@@ -79,7 +79,7 @@ export const CitizenNav: React.FC<Props> = ({
                 <span className="font-mono text-sm sm:text-base font-black tracking-tight text-white">
                   ECOTWIN
                 </span>
-                <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <span className="hidden sm:inline text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                   Citizen Companion
                 </span>
               </div>
@@ -91,7 +91,7 @@ export const CitizenNav: React.FC<Props> = ({
         </div>
 
         {/* Search Bar & Auto-Suggestions */}
-        <div ref={searchRef} className="relative flex-1 max-w-xs sm:max-w-md mx-2">
+        <div ref={searchRef} className="relative flex-1 min-w-0 max-w-xs sm:max-w-md sm:mx-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
@@ -152,11 +152,11 @@ export const CitizenNav: React.FC<Props> = ({
         </div>
 
         {/* Research Exploration CTA & Timestamp */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div className="hidden lg:flex items-center gap-1.5 text-xs text-slate-400 bg-[#121620] px-3 py-1.5 rounded-full border border-[#232A3B]">
             <Clock className="w-3.5 h-3.5 text-amber-400" />
             <span className="font-mono text-[11px] text-slate-300">
-              {timeInfo.formattedDate} · {timeInfo.formattedTime}
+              {timeInfo.formattedDate}{timeInfo.formattedTime && ` · ${timeInfo.formattedTime}`}
             </span>
           </div>
 

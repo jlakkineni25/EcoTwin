@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import maplibregl, { Map as MapLibreMap, Marker } from 'maplibre-gl';
 import { useTwinStore } from '../../store/useTwinStore';
+import { scenarioSpeed } from '../../utils/scenarios';
 import { Station, StationForecast, WindEdgesMap } from '../../types';
 import { CPCB_CATEGORIES, getAQICategory } from '../../utils/aqi';
 import {
@@ -20,6 +21,7 @@ import {
   MapPin,
   Navigation,
 } from 'lucide-react';
+import { asset } from '../../utils/paths';
 
 interface Props {
   stations: Station[];
@@ -56,6 +58,7 @@ export const DigitalTwinMap: React.FC<Props> = ({
     compassAngle,
     windSpeedMultiplier,
     scenarioKey,
+    realWind,
   } = useTwinStore();
 
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -185,7 +188,7 @@ export const DigitalTwinMap: React.FC<Props> = ({
       if (!map.getSource('delhi-satellite-source')) {
         map.addSource('delhi-satellite-source', {
           type: 'image',
-          url: '/images/delhi-satellite-night.jpg',
+          url: asset('/images/delhi-satellite-night.jpg'),
           coordinates: [
             [76.84, 28.92], // NW Top-Left
             [77.46, 28.92], // NE Top-Right
@@ -575,11 +578,12 @@ export const DigitalTwinMap: React.FC<Props> = ({
       // 2. Draw Aerodynamic Atmospheric Wind Streamlines (Luminous Gold Streamlines)
       if (showWindParticles) {
         let angleRad = (compassAngle * Math.PI) / 180;
-        let speedMult = windSpeedMultiplier;
+        // the real wind speed of this window sets the base particle speed (about 2 m/s = 1.0); the what-if multiplier scales it
+        let speedMult = windSpeedMultiplier * (realWind ? Math.min(2.5, Math.max(0.5, realWind.speedMs / 2)) : 1);
 
-        if (scenarioKey === 'wind_x2') speedMult *= 2.0;
-        if (scenarioKey === 'wind_nw') angleRad = (315 * Math.PI) / 180;
-        if (scenarioKey === 'wind_rev') angleRad = ((compassAngle + 180) * Math.PI) / 180;
+        // a wind-speed scenario sets the speed itself (the what-if panel keeps the slider in step); the direction is the compass
+        const scenSpeed = scenarioSpeed(scenarioKey);
+        if (scenSpeed !== undefined) speedMult = scenSpeed * (realWind ? Math.min(2.5, Math.max(0.5, realWind.speedMs / 2)) : 1);
 
         // Downwind flow vector: wind FROM direction blows TO (angle + 180)
         const flowAngle = angleRad + Math.PI;
@@ -657,6 +661,7 @@ export const DigitalTwinMap: React.FC<Props> = ({
     compassAngle,
     windSpeedMultiplier,
     scenarioKey,
+    realWind,
   ]);
 
   // Re-fit MapLibre viewport when cockpit expands or collapses
@@ -820,7 +825,7 @@ export const DigitalTwinMap: React.FC<Props> = ({
           {showAirshedGraph && (
             <div className="px-2.5 py-1 rounded-lg bg-[#0B0E14]/90 backdrop-blur border border-[#232A3B] text-[11px] font-mono text-slate-300 w-fit flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#ECC138] animate-pulse"></span>
-              <span>{activeEdges.length} Active Wind Links</span>
+              <span>Strongest {activeEdges.length} wind links</span>
             </div>
           )}
 

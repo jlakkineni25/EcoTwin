@@ -1,0 +1,7 @@
+# Only what live_refresh.py needs (used by the hourly GitHub Actions job; the full list is requirements.txt).
+# torch is installed separately in the workflow from the CPU-only index (smaller download).
+numpy==2.4.3
+pandas==3.1.0
+openpyxl==3.1.5          # reads Delhi_list_v2.xlsx
+scikit-learn==1.8.0      # the saved scalers were pickled with 1.8.0
+requests==2.32.5

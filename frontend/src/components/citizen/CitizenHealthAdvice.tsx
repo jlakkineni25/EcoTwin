@@ -5,13 +5,17 @@ import { Shield, Heart, Home, AlertCircle, CheckCircle2, Sparkles, Lightbulb } f
 
 interface Props {
   currentPm25: number;
+  forecastPeak6h?: number;
   stationName: string;
 }
 
 export const CitizenHealthAdvice: React.FC<Props> = ({
-  currentPm25,
+  currentPm25: nowPm25,
+  forecastPeak6h,
   stationName,
 }) => {
+  // The advice follows the higher of the current level and the forecast peak of the next 6 hours
+  const currentPm25 = Math.max(nowPm25, forecastPeak6h ?? 0);
   const guidance = getCitizenHealthGuidance(currentPm25);
 
   const getStatusBadge = (status: string) => {
@@ -83,12 +87,13 @@ export const CitizenHealthAdvice: React.FC<Props> = ({
             </h2>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Clear, actionable recommendations for everyday activities in {stationName}
+            Simple everyday advice for {stationName}. It follows the worse of the air right now ({Math.round(nowPm25)} µg/m³)
+            {forecastPeak6h !== undefined ? ` and the forecast for the next 6 hours (${Math.round(forecastPeak6h)} µg/m³)` : ''}.
           </p>
         </div>
 
         <span className="text-xs text-slate-400 self-start sm:self-center font-mono">
-          CPCB Health Guidelines
+          General guidance by air pollution level
         </span>
       </div>
 
@@ -232,7 +237,7 @@ export const CitizenHealthAdvice: React.FC<Props> = ({
         <div className="flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
           <span>
-            If experiencing breathing discomfort or chest tightness, reduce physical exertion and consult a physician.
+            General guidance, not medical advice. If experiencing breathing discomfort or chest tightness, reduce physical exertion and consult a physician.
           </span>
         </div>
         <span className="font-mono text-slate-400 whitespace-nowrap">

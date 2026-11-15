@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { StationForecast } from '../../types';
 import { getAQICategory, CPCB_CATEGORIES } from '../../utils/aqi';
-import { computeDailyWindowHighlights } from '../../utils/citizenZones';
 import {
   Clock,
   Sun,
@@ -79,18 +78,13 @@ export const CitizenForecast: React.FC<Props> = ({
   // Immediate next 6 hours
   const immediateHours = useMemo(() => hourlyItems.slice(0, 6), [hourlyItems]);
 
-  // Daily highlights (best window vs peak inversion)
-  const highlights = useMemo(() => {
-    return computeDailyWindowHighlights(forecast.predicted_24h, timestamp);
-  }, [forecast, timestamp]);
-
   // Determine overall expected direction (improving vs worsening)
   const overallTrend = useMemo(() => {
     if (!hourlyItems || hourlyItems.length === 0) {
       return {
         status: 'steady' as const,
         title: 'Projected Steady Conditions',
-        text: 'Particulate levels are expected to remain consistent over the next 12 hours.',
+        text: 'No forecast is available for this window.',
         icon: '↔️',
         badgeBg: 'bg-slate-800 text-slate-300',
       };
@@ -100,12 +94,13 @@ export const CitizenForecast: React.FC<Props> = ({
     const next6Avg = hourlyItems.slice(0, 6).reduce((acc, h) => acc + h.val, 0) / 6;
     const peak24 = Math.max(...hourlyItems.map((h) => h.val));
     const diffToPeak = Math.round(peak24 - current);
+    const peakHour = hourlyItems.reduce((m, h) => (h.val > m.val ? h : m), hourlyItems[0]).hourStr;
 
     if (diffToPeak >= 25) {
       return {
         status: 'worsening' as const,
-        title: 'Air Quality Expected to Worsen Tonight',
-        text: `Particulate levels are projected to rise +${diffToPeak} µg/m³ higher, peaking at ~${Math.round(peak24)} µg/m³ around ${highlights.peakWarning.startHour} due to nighttime ground cooling trapping smoke.`,
+        title: 'Air Quality Expected to Worsen',
+        text: `The air is expected to get worse: from about ${Math.round(current)} µg/m³ now to about ${Math.round(peak24)} µg/m³ (${getAQICategory(peak24)}) around ${peakHour}.`,
         icon: '⚠️',
         badgeBg: 'bg-rose-500/20 text-rose-300 border border-rose-500/40',
       };
@@ -113,8 +108,8 @@ export const CitizenForecast: React.FC<Props> = ({
       const drop = Math.round(current - next6Avg);
       return {
         status: 'improving' as const,
-        title: 'Air Quality Expected to Improve Today',
-        text: `Particulate concentrations are projected to decrease by ~${drop} µg/m³ this afternoon as solar warming expands the atmospheric mixing layer.`,
+        title: 'Air Quality Expected to Improve',
+        text: `The air is expected to get better: over the next 6 hours it averages about ${drop} µg/m³ lower than now.`,
         icon: '🌤️',
         badgeBg: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40',
       };
@@ -123,11 +118,11 @@ export const CitizenForecast: React.FC<Props> = ({
     return {
       status: 'steady' as const,
       title: 'Stable Air Quality Trajectory',
-      text: `Particulate levels will remain relatively stable within the ${forecast.current_aqi} range over the coming hours.`,
+      text: `The air is expected to stay about the same (${forecast.current_aqi}) over the coming hours.`,
       icon: '🍃',
       badgeBg: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40',
     };
-  }, [hourlyItems, forecast, highlights]);
+  }, [hourlyItems, forecast]);
 
   // SVG Area / Line Chart geometry calculations
   const chartConfig = useMemo(() => {

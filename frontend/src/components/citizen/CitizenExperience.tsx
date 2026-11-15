@@ -17,7 +17,7 @@ interface Props {
   timestamp: string;
   selectedStationId: number;
   onSelectStation: (id: number) => void;
-  compassAngle: number;
+  wind: { fromDeg: number; speedKmh: number } | null;
   onExploreResearch: () => void;
 }
 
@@ -28,7 +28,7 @@ export const CitizenExperience: React.FC<Props> = ({
   timestamp,
   selectedStationId,
   onSelectStation,
-  compassAngle,
+  wind,
   onExploreResearch,
 }) => {
   const [activeZone, setActiveZone] = useState<DelhiZone>('All');
@@ -47,23 +47,12 @@ export const CitizenExperience: React.FC<Props> = ({
 
   // Current station's forecast data
   const currentForecast = useMemo(() => {
-    return (
-      forecasts.find((f) => f.station_id === currentStation?.id) ||
-      forecasts[0] || {
-        station_id: 0,
-        current_pm25: 156,
-        current_aqi: 'Very Poor' as const,
-        actual_24h: [],
-        predicted_24h: [],
-        peak_predicted: 228,
-        hours_to_breach_cpcb: 1,
-      }
-    );
+    return forecasts.find((f) => f.station_id === currentStation?.id) ?? forecasts[0];
   }, [forecasts, currentStation]);
 
   // Citywide average PM2.5 calculation
   const citywideAvg = useMemo(() => {
-    if (!forecasts || forecasts.length === 0) return 168;
+    if (!forecasts || forecasts.length === 0) return 0;
     const sum = forecasts.reduce((acc, f) => acc + f.current_pm25, 0);
     return Math.round(sum / forecasts.length);
   }, [forecasts]);
@@ -89,6 +78,15 @@ export const CitizenExperience: React.FC<Props> = ({
       mapSectionRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  // No stand-in numbers: without data for this window there is nothing to show
+  if (!currentForecast || !currentStation) {
+    return (
+      <div className="min-h-screen bg-[#0B0E14] text-slate-300 flex items-center justify-center text-sm font-mono">
+        No forecast data is available for this window.
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0B0E14] text-slate-100 flex flex-col font-sans selection:bg-[#ECC138]/20 selection:text-[#ECC138]">
@@ -129,10 +127,7 @@ export const CitizenExperience: React.FC<Props> = ({
             )}
           </div>
           <div className="lg:col-span-5 flex flex-col">
-            <CitizenWindMovement
-              compassAngle={compassAngle}
-              windSpeedKmh={8.4}
-            />
+            <CitizenWindMovement wind={wind} />
           </div>
         </div>
 
@@ -152,6 +147,7 @@ export const CitizenExperience: React.FC<Props> = ({
           {currentStation && (
             <CitizenHealthAdvice
               currentPm25={currentForecast.current_pm25}
+              forecastPeak6h={currentForecast.predicted_24h.length ? Math.max(...currentForecast.predicted_24h.slice(0, 6)) : undefined}
               stationName={currentStation.name}
             />
           )}
@@ -164,7 +160,7 @@ export const CitizenExperience: React.FC<Props> = ({
             forecasts={forecasts}
             selectedStationId={selectedStationId}
             onSelectStation={onSelectStation}
-            compassAngle={compassAngle}
+            compassAngle={wind?.fromDeg}
           />
         </section>
 

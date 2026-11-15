@@ -1,0 +1,29 @@
+# EcoTwin (WA-TGCN) - Python packages used by the notebooks and scripts in v2_clean.
+# Versions are the ones installed where the results were produced (Python 3.14).
+# Install with:  pip install -r requirements.txt
+
+# data and numerics
+numpy==2.4.3
+pandas==3.1.0
+openpyxl==3.1.5          # reads the station list Excel files
+scikit-learn==1.8.0      # StandardScaler; the saved scalers were pickled with 1.8.0 (1.9.x works but warns)
+networkx==3.6.1
+
+# model (WA-TGCN). Pinned to the version that saved the .pt checkpoints.
+# The original run used a CUDA build (2.11.0+cu128); plain "pip install" gives the standard build, which also runs on CPU.
+torch==2.11.0
+
+# live data (notebook 41: OpenAQ and Open-Meteo requests)
+requests==2.32.5
+
+# plots and the Streamlit dashboard (app.py)
+matplotlib==3.10.8
+plotly==6.9.0
+folium==0.20.0
+streamlit==1.61.1
+streamlit-folium==0.27.4
+
+# running the notebooks
+notebook==7.5.1
+ipykernel==7.1.0
+nbformat==5.10.4

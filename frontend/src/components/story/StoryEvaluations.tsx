@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useInView } from '../../hooks/useInView';
-import { SummaryData, BaselinesData } from '../../types';
+import { SummaryData, ModelCard, BenchmarkRow } from '../../types';
 import { useTwinStore } from '../../store/useTwinStore';
 import { 
   Award, 
@@ -20,99 +20,57 @@ import {
   Sparkles,
   Server
 } from 'lucide-react';
+import { asset } from '../../utils/paths';
 
 interface Props {
   summary?: SummaryData;
-  baselines?: BaselinesData;
+  modelCard?: ModelCard;
 }
 
-export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
+export const StoryEvaluations: React.FC<Props> = ({ summary, modelCard }) => {
   const { ref, isInView } = useInView({ threshold: 0.1 });
   const { startDemo } = useTwinStore();
   const [showTable, setShowTable] = useState<boolean>(true);
-  const [activeRegimeTab, setActiveRegimeTab] = useState<'all' | 'volatile' | 'moderate' | 'stable'>('all');
 
   const scrollToTwin = () => {
     (document.getElementById('twin-studio') || document.getElementById('twin'))?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Strictly verified evaluation values
-  const verifiedStats = {
-    mae: 39.69,
-    rmse: 60.92,
-    r2: 0.6341,
-    seeds: 7,
-    testWindows: summary?.test_windows_total || 2918,
-    stations: summary?.n_stations || 37,
-    regimes: {
-      stable: { rmse: 29.89, label: 'Stable Regime', share: '33% Samples', desc: 'Calm winds (<1.0 m/s), steady local emissions, minimal advection' },
-      moderate: { rmse: 42.95, label: 'Moderate Regime', share: '33% Samples', desc: 'Standard diurnal boundary layer expansion and evening peak cycles' },
-      volatile: { rmse: 90.87, label: 'Volatile Regime', share: '34% Samples', desc: 'Rapid winter temperature inversions, cold fronts, and sudden wind shifts' }
-    },
-    horizonRMSE: [
-      { h: '+1h', val: 41.41 },
-      { h: '+3h', val: 48.86 },
-      { h: '+6h', val: 56.70 },
-      { h: '+9h', val: 60.54 },
-      { h: '+12h', val: 62.99 },
-      { h: '+15h', val: 64.78 },
-      { h: '+18h', val: 65.97 },
-      { h: '+21h', val: 66.51 },
-      { h: '+24h', val: 66.49 },
-    ]
-  };
+  // Every number on this page comes from /data/model_card.json (written by v2_clean/make_frontend_data.py from the saved result files).
+  const mc = modelCard;
+  if (!mc) return null;
 
-  // Verified benchmark comparison table rows
-  const benchmarkRows = [
-    {
-      model: 'WA-TGCN v2 (Wind-Aware Dynamic Graph)',
-      isOurs: true,
-      rmse: 60.92,
-      mae: 39.69,
-      r2: 0.6341,
-      stableRMSE: 29.89,
-      moderateRMSE: 42.95,
-      volatileRMSE: 90.87,
-      latency: '0.31 ms',
-      notes: 'Dynamic A(t) recomputed hourly + Forecast climatology A_fc decoder + Gated Anchor',
-    },
-    {
-      model: 'Static-GCN Baseline',
-      isOurs: false,
-      rmse: 61.73,
-      mae: 40.33,
-      r2: 0.6243,
-      stableRMSE: 29.56,
-      moderateRMSE: 43.81,
-      volatileRMSE: 92.18,
-      latency: '0.29 ms',
-      notes: 'Fixed 12km Haversine distance graph without wind advection awareness',
-    },
-    {
-      model: 'No-Graph Baseline (Temporal GRU + MHA)',
-      isOurs: false,
-      rmse: 62.18,
-      mae: 40.30,
-      r2: 0.6189,
-      stableRMSE: 29.55,
-      moderateRMSE: 43.64,
-      volatileRMSE: 93.13,
-      latency: '0.26 ms',
-      notes: 'No spatial graph convolution; stations modeled as isolated time series',
-    },
-    {
-      model: 'Persistence Baseline (Naive Anchor)',
-      isOurs: false,
-      rmse: 83.87,
-      mae: 56.93,
-      r2: 0.3065,
-      stableRMSE: 37.02,
-      moderateRMSE: 62.91,
-      volatileRMSE: 124.57,
-      latency: '<0.01 ms',
-      notes: 'Last observed PM2.5 reading carried forward across all 24 horizons',
-    },
-  ];
+  const verifiedStats = {
+    mae: mc.overall.mae,
+    rmse: mc.overall.rmse,
+    r2: mc.overall.r2,
+    seeds: mc.seeds,
+    testWindows: summary?.test_windows_total || mc.test_windows,
+    stations: summary?.n_stations || mc.stations,
+  };
+  const benchmarkRows: BenchmarkRow[] = mc.benchmarks;
+  const fmt = (v: number | null, d = 2) => (v === null || v === undefined ? '—' : v.toFixed(d));
+
+  // Error-by-horizon curve (RMSE of the final model at +1h ... +24h), drawn from the data
+  const hz = Array.from({ length: 24 }, (_, i) => mc.rmse_by_horizon[`+${i + 1}h`]);
+  const Y_LO = 30;
+  const Y_HI = 75;
+  const xOf = (i: number) => 50 + (325 * i) / 23;
+  const yOf = (v: number) => 160 - ((v - Y_LO) / (Y_HI - Y_LO)) * 130;
+  const linePath = hz.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xOf(i).toFixed(1)} ${yOf(v).toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L ${xOf(23).toFixed(1)} 160 L ${xOf(0).toFixed(1)} 160 Z`;
+  const marks = [0, 5, 11, 23];
+
+  const regimes = [
+    { key: 'Stable', label: 'Stable Regime', tag: 'Smallest swings', desc: 'PM2.5 changes little over the 24 forecast hours.', color: '#10B981' },
+    { key: 'Moderate', label: 'Moderate Regime', tag: 'Typical swings', desc: 'The usual daily rise and fall.', color: '#38BDF8' },
+    { key: 'Volatile', label: 'Volatile Regime', tag: 'Largest swings', desc: 'Large changes within 24 hours: the hardest third of windows, holding most of the total error.', color: '#ECC138' },
+  ] as const;
+  const pick = (rowKey: string, regime: 'Stable' | 'Moderate' | 'Volatile'): number => {
+    const row = mc.benchmarks.find((b) => b.key === rowKey);
+    const v = row ? (row[regime.toLowerCase() as 'stable' | 'moderate' | 'volatile'] as number | null) : null;
+    return v ?? 0;
+  };
 
   return (
     <section
@@ -123,7 +81,7 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
       {/* 1. Atmospheric Ambient Background */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-10 mix-blend-luminosity scale-105 pointer-events-none transition-transform duration-1000"
-        style={{ backgroundImage: `url('/images/industrial_aerial.jpg')` }}
+        style={{ backgroundImage: `url('${asset('/images/industrial_aerial.jpg')}')` }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-[#0B0E14] via-[#0B0E14]/90 to-[#0B0E14] pointer-events-none" />
 
@@ -163,12 +121,12 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
               </h2>
               <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-xl bg-[#C89B6D] text-[#0B0E14] font-bold text-xs sm:text-sm font-mono tracking-wider shadow-lg shadow-[#C89B6D]/20">
                 <CheckCircle2 className="w-4 h-4 text-[#0B0E14]" />
-                <span>Zero-Leakage Temporal Evaluation Across 37 Delhi Stations</span>
+                <span>Chronological, Held-Out Evaluation Across 37 Delhi Stations</span>
               </div>
             </div>
 
             <p className="text-sm sm:text-base text-slate-300 font-light max-w-xl leading-relaxed">
-              Evaluating air quality deep learning requires uncompromising academic discipline. EcoTwin was tested across {verifiedStats.testWindows.toLocaleString()} strictly chronologically ordered sliding windows across all 37 Delhi CAAQMS stations—with zero future data leakage, a 7-seed checked ensemble, and granular evaluation across atmospheric stability regimes.
+              The model was tested on {verifiedStats.testWindows.toLocaleString()} windows in strict time order, with a {mc.seeds}-seed ensemble and a breakdown by how much PM2.5 swings over the forecast horizon.
             </p>
           </div>
         </div>
@@ -213,7 +171,7 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-[#232A3B] text-[11px] text-slate-400 font-light leading-snug">
-                  Evaluated across all 24 continuous future horizons. Outperforms static distance graphs by <span className="text-[#ECC138] font-bold">1.33% overall</span> and persistence by <span className="text-[#ECC138] font-bold">27.4%</span>.
+                  Evaluated across all 24 future horizons with a real day-old forecast wind. <span className="text-[#ECC138] font-bold">{mc.improvement_vs_persistence_pct}%</span> lower RMSE than persistence; within <span className="text-[#ECC138] font-bold">{Math.abs(mc.gap_vs_static_ugm3).toFixed(2)} µg/m³</span> of the static-graph baseline, which is inside seed noise.
                 </div>
               </div>
 
@@ -251,7 +209,7 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-[#232A3B] text-[11px] text-slate-400 font-light leading-snug">
-                  Explains <span className="text-[#10B981] font-bold">63.41%</span> of multi-station atmospheric variance across complex multi-day stagnation and advection events.
+                  Explains <span className="text-[#10B981] font-bold">{(verifiedStats.r2 * 100).toFixed(1)}%</span> of the variance in PM2.5 across the held-out winter test period.
                 </div>
               </div>
 
@@ -267,71 +225,44 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
                 <span className="text-slate-400">+1h to +24h Continuous</span>
               </div>
 
-              {/* High-Resolution SVG Sparkline Curve */}
+              {/* SVG curve drawn from model_card.json */}
               <div className="relative w-full aspect-[400/180] bg-[#07090D] rounded-2xl p-4 border border-[#232A3B] flex items-center justify-center">
                 <svg viewBox="0 0 400 180" className="w-full h-full select-none">
-                  {/* Horizontal Gridlines */}
-                  <line x1="40" y1="30" x2="380" y2="30" stroke="#1A202C" strokeWidth="1" strokeDasharray="3 3" />
-                  <text x="32" y="34" fill="#64748B" fontSize="8" fontFamily="monospace" textAnchor="end">70</text>
-                  
-                  <line x1="40" y1="80" x2="380" y2="80" stroke="#1A202C" strokeWidth="1" strokeDasharray="3 3" />
-                  <text x="32" y="84" fill="#64748B" fontSize="8" fontFamily="monospace" textAnchor="end">60</text>
-
-                  <line x1="40" y1="130" x2="380" y2="130" stroke="#1A202C" strokeWidth="1" strokeDasharray="3 3" />
-                  <text x="32" y="134" fill="#64748B" fontSize="8" fontFamily="monospace" textAnchor="end">40</text>
-
-                  {/* CPCB 60 Threshold Reference Line */}
-                  <line x1="40" y1="80" x2="380" y2="80" stroke="#F59E0B" strokeWidth="1" strokeDasharray="4 4" opacity="0.6" />
-
-                  {/* Gradient Area Fill */}
-                  <path
-                    d="M 50 128 C 90 100, 150 78, 210 65 C 270 55, 330 52, 375 51 L 375 160 L 50 160 Z"
-                    fill="rgba(236,193,56,0.12)"
-                  />
-
-                  {/* Error Curve Line: From 41.41 (+1h) to 66.49 (+24h) */}
-                  <path
-                    d="M 50 128 C 90 100, 150 78, 210 65 C 270 55, 330 52, 375 51"
-                    fill="none"
-                    stroke="#ECC138"
-                    strokeWidth="3"
-                  />
-
-                  {/* Highlight Points on Curve */}
-                  {[
-                    { x: 50, y: 128, label: '+1h: 41.4', pos: 'bottom' },
-                    { x: 135, y: 88, label: '+6h: 56.7', pos: 'top' },
-                    { x: 235, y: 64, label: '+12h: 63.0', pos: 'top' },
-                    { x: 375, y: 51, label: '+24h: 66.5', pos: 'top' },
-                  ].map((pt, i) => (
+                  {[40, 50, 60, 70].map((g) => (
+                    <g key={g}>
+                      <line x1="40" y1={yOf(g)} x2="380" y2={yOf(g)} stroke="#1A202C" strokeWidth="1" strokeDasharray="3 3" />
+                      <text x="32" y={yOf(g) + 3} fill="#64748B" fontSize="8" fontFamily="monospace" textAnchor="end">{g}</text>
+                    </g>
+                  ))}
+                  <path d={areaPath} fill="rgba(236,193,56,0.12)" />
+                  <path d={linePath} fill="none" stroke="#ECC138" strokeWidth="3" />
+                  {marks.map((i) => (
                     <g key={i}>
-                      <circle cx={pt.x} cy={pt.y} r="4" fill="#FFFDF8" stroke="#ECC138" strokeWidth="2" />
+                      <circle cx={xOf(i)} cy={yOf(hz[i])} r="4" fill="#FFFDF8" stroke="#ECC138" strokeWidth="2" />
                       <text
-                        x={pt.x}
-                        y={pt.pos === 'top' ? pt.y - 8 : pt.y + 14}
+                        x={xOf(i)}
+                        y={i === 0 ? yOf(hz[i]) + 14 : yOf(hz[i]) - 8}
                         fill="#FFFDF8"
                         fontSize="8.5"
                         fontFamily="monospace"
-                        textAnchor={i === 3 ? 'end' : i === 0 ? 'start' : 'middle'}
+                        textAnchor={i === 23 ? 'end' : i === 0 ? 'start' : 'middle'}
                         fontWeight="bold"
                       >
-                        {pt.label}
+                        {`+${i + 1}h: ${hz[i].toFixed(1)}`}
                       </text>
                     </g>
                   ))}
-
-                  {/* X Axis Labels */}
                   <line x1="40" y1="160" x2="380" y2="160" stroke="#232A3B" strokeWidth="1" />
-                  <text x="50" y="174" fill="#64748B" fontSize="8" fontFamily="monospace">Now (+1h)</text>
-                  <text x="135" y="174" fill="#64748B" fontSize="8" fontFamily="monospace">+6h</text>
-                  <text x="235" y="174" fill="#64748B" fontSize="8" fontFamily="monospace">+12h</text>
+                  <text x="50" y="174" fill="#64748B" fontSize="8" fontFamily="monospace">+1h</text>
+                  <text x={xOf(5)} y="174" fill="#64748B" fontSize="8" fontFamily="monospace" textAnchor="middle">+6h</text>
+                  <text x={xOf(11)} y="174" fill="#64748B" fontSize="8" fontFamily="monospace" textAnchor="middle">+12h</text>
                   <text x="375" y="174" fill="#64748B" fontSize="8" fontFamily="monospace" textAnchor="end">+24h Horizon</text>
                 </svg>
               </div>
 
               <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1">
-                <span className="text-[#10B981] font-semibold">Bounded Asymptotic Error</span>
-                <span>Near-term anchor: 41.41 µg/m³ · 24h ceiling: 66.49 µg/m³</span>
+                <span className="text-[#10B981] font-semibold">Error grows, then flattens</span>
+                <span>+1h: {hz[0].toFixed(1)} µg/m³ · +24h: {hz[23].toFixed(1)} µg/m³</span>
               </div>
             </div>
 
@@ -352,137 +283,66 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
               <span className="font-bold text-white">PILLAR 2: REGIME-SPECIFIC RMSE COMPARISON</span>
             </div>
             <span className="text-xs font-mono text-[#ECC138] font-bold">
-              Proof of RG6 Novelty: Maximum Advantage During Volatile Shifts
+              Final model against the baselines, by regime
             </span>
           </div>
 
           <p className="text-xs sm:text-sm text-slate-300 max-w-4xl font-light leading-relaxed">
-            Overall test metrics average across all meteorological conditions. To verify the physical hypothesis of wind-conditioned graph convolutions, the test set was stratified into three equal atmospheric fluid regimes based on meteorological variance. WA-TGCN demonstrates that wind awareness provides its highest margin when air is rapidly shifting.
+            Overall metrics average across all conditions. The test windows were split into three equal groups by how much PM2.5 swings over the next 24 hours. The volatile third holds most of the total error. In every regime the graph variants stay within about 3 µg/m³ of each other, so the regime view shows where the error is, not a graph advantage.
           </p>
 
-          {/* The 3 Physical Atmospheric Regimes: Visual Display */}
+          {/* The 3 volatility regimes: final model against the baselines, all from model_card.json */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Regime 1: Stable Atmosphere */}
-            <div className="p-6 sm:p-7 rounded-3xl bg-[#121620]/90 backdrop-blur-md border border-[#232A3B] flex flex-col justify-between space-y-4 hover:border-[#10B981]/50 transition-all">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#10B981]/15 text-[#10B981] font-bold">
-                    {verifiedStats.regimes.stable.share}
-                  </span>
-                  <span className="text-slate-500 font-mono text-[11px]">Low Wind Volatility</span>
-                </div>
-
-                <h3 className="text-xl font-display font-extrabold text-[#FFFDF8]">
-                  {verifiedStats.regimes.stable.label}
-                </h3>
-
-                <p className="text-xs text-slate-400 font-light leading-relaxed">
-                  {verifiedStats.regimes.stable.desc}. High nocturnal inversion trapping with minimal regional advection.
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-[#232A3B] space-y-2">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-xs font-mono text-slate-400">WA-TGCN RMSE:</span>
-                  <span className="text-3xl font-display font-black text-[#10B981]">
-                    {verifiedStats.regimes.stable.rmse.toFixed(2)} <span className="text-xs font-mono text-slate-400 font-normal">µg/m³</span>
-                  </span>
-                </div>
-                
-                {/* Visual comparative bar */}
-                <div className="space-y-1 text-[11px] font-mono text-slate-400">
-                  <div className="flex items-center justify-between">
-                    <span>Static-GCN: 31.20</span>
-                    <span className="text-[#10B981]">Superior</span>
+            {regimes.map((rg) => {
+              const ours = mc.rmse_by_regime[rg.key];
+              const persV = mc.persistence_by_regime[rg.key];
+              const lines = [
+                { label: 'Static graph', v: pick('static', rg.key) },
+                { label: 'Graph-free', v: pick('none', rg.key) },
+                { label: 'Persistence', v: persV },
+              ];
+              return (
+                <div
+                  key={rg.key}
+                  className={`p-6 sm:p-7 rounded-3xl bg-[#121620]/90 backdrop-blur-md border flex flex-col justify-between space-y-4 transition-all ${
+                    rg.key === 'Volatile' ? 'border-[#ECC138]/60 shadow-[0_0_50px_-15px_rgba(236,193,56,0.2)]' : 'border-[#232A3B]'
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="px-2.5 py-0.5 rounded-full font-bold" style={{ background: `${rg.color}26`, color: rg.color }}>
+                        {mc.regime_share[rg.key]} of windows
+                      </span>
+                      <span className="text-slate-500 font-mono text-[11px]">{rg.tag}</span>
+                    </div>
+                    <h3 className="text-xl font-display font-extrabold text-[#FFFDF8]">{rg.label}</h3>
+                    <p className="text-xs text-slate-400 font-light leading-relaxed">{rg.desc}</p>
                   </div>
-                  <div className="w-full bg-[#181E2B] h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-[#10B981] h-full rounded-full" style={{ width: '30%' }} />
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Regime 2: Moderate Atmosphere */}
-            <div className="p-6 sm:p-7 rounded-3xl bg-[#121620]/90 backdrop-blur-md border border-[#232A3B] flex flex-col justify-between space-y-4 hover:border-[#38BDF8]/50 transition-all">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#38BDF8]/15 text-[#38BDF8] font-bold">
-                    {verifiedStats.regimes.moderate.share}
-                  </span>
-                  <span className="text-slate-500 font-mono text-[11px]">Diurnal Cycles</span>
-                </div>
-
-                <h3 className="text-xl font-display font-extrabold text-[#FFFDF8]">
-                  {verifiedStats.regimes.moderate.label}
-                </h3>
-
-                <p className="text-xs text-slate-400 font-light leading-relaxed">
-                  {verifiedStats.regimes.moderate.desc}. Captures morning and evening rush-hour accumulation.
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-[#232A3B] space-y-2">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-xs font-mono text-slate-400">WA-TGCN RMSE:</span>
-                  <span className="text-3xl font-display font-black text-[#38BDF8]">
-                    {verifiedStats.regimes.moderate.rmse.toFixed(2)} <span className="text-xs font-mono text-slate-400 font-normal">µg/m³</span>
-                  </span>
-                </div>
-                
-                {/* Visual comparative bar */}
-                <div className="space-y-1 text-[11px] font-mono text-slate-400">
-                  <div className="flex items-center justify-between">
-                    <span>Static-GCN: 44.50</span>
-                    <span className="text-[#38BDF8]">Superior</span>
-                  </div>
-                  <div className="w-full bg-[#181E2B] h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-[#38BDF8] h-full rounded-full" style={{ width: '43%' }} />
+                  <div className="pt-4 border-t border-[#232A3B] space-y-3">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs font-mono text-slate-400">Final model RMSE:</span>
+                      <span className="text-3xl font-display font-black" style={{ color: rg.color }}>
+                        {ours.toFixed(2)} <span className="text-xs font-mono text-slate-400 font-normal">µg/m³</span>
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-[11px] font-mono text-slate-400">
+                      {lines.map((ln) => (
+                        <div key={ln.label} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span>{ln.label}</span>
+                            <span>{ln.v.toFixed(2)} µg/m³</span>
+                          </div>
+                          <div className="w-full bg-[#181E2B] h-1.5 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${Math.min(100, (ln.v / persV) * 100)}%`, background: ln.label === 'Persistence' ? '#475569' : rg.color }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Regime 3: Volatile Inversion Regime (The Critical Stress Test) */}
-            <div className="p-6 sm:p-7 rounded-3xl bg-[#121620]/90 backdrop-blur-md border border-[#ECC138]/60 shadow-[0_0_50px_-15px_rgba(236,193,56,0.2)] flex flex-col justify-between space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#ECC138] text-[#0B0E14] font-bold">
-                    {verifiedStats.regimes.volatile.share}
-                  </span>
-                  <span className="text-[#ECC138] font-mono text-[11px] font-bold">Primary Research Focus</span>
-                </div>
-
-                <h3 className="text-xl font-display font-extrabold text-[#FFFDF8]">
-                  {verifiedStats.regimes.volatile.label}
-                </h3>
-
-                <p className="text-xs text-slate-300 font-light leading-relaxed">
-                  {verifiedStats.regimes.volatile.desc}. Plumes cross municipal sectors rapidly; static graphs fail completely.
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-[#232A3B] space-y-2">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-xs font-mono text-slate-300 font-bold">WA-TGCN RMSE:</span>
-                  <span className="text-3xl font-display font-black text-[#ECC138]">
-                    {verifiedStats.regimes.volatile.rmse.toFixed(2)} <span className="text-xs font-mono text-slate-400 font-normal">µg/m³</span>
-                  </span>
-                </div>
-                
-                {/* Visual comparative bar */}
-                <div className="space-y-1 text-[11px] font-mono text-slate-300">
-                  <div className="flex items-center justify-between">
-                    <span>Static-GCN: 95.40 µg/m³</span>
-                    <span className="text-[#ECC138] font-bold">-4.53 µg/m³ Error Cut</span>
-                  </div>
-                  <div className="w-full bg-[#181E2B] h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-[#ECC138] h-full rounded-full" style={{ width: '91%' }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
+              );
+            })}
           </div>
         </div>
 
@@ -500,7 +360,7 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
               <span className="font-bold text-white">PILLAR 3: EVALUATION PROTOCOL & ENGINEERING INTEGRITY</span>
             </div>
             <span className="text-xs font-mono text-[#10B981] font-bold">
-              100.0% Complete Hourly Records · 0 Phantom Nodes
+              19,921 hourly records per station · gaps filled by imputation (PM2.5: 94.6% original readings)
             </span>
           </div>
 
@@ -509,10 +369,10 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
             <div className="p-5 rounded-2xl bg-[#121620]/80 border border-[#232A3B] space-y-2">
               <div className="flex items-center gap-2 text-[#ECC138]">
                 <Cpu className="w-4 h-4" />
-                <span className="font-mono text-xs font-bold uppercase tracking-wider">7-Seed Ensemble</span>
+                <span className="font-mono text-xs font-bold uppercase tracking-wider">{mc.seeds}-Seed Ensemble</span>
               </div>
               <div className="text-2xl font-display font-extrabold text-[#FFFDF8]">
-                7 Seeds
+                {mc.seeds} Seeds
               </div>
               <p className="text-xs sm:text-[13px] text-slate-300 font-normal leading-relaxed">
                 Trained across independent random initializations (42, 7, 123, 2024, 999) to rule out stochastic flukes.
@@ -522,13 +382,13 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
             <div className="p-5 rounded-2xl bg-[#121620]/80 border border-[#232A3B] space-y-2">
               <div className="flex items-center gap-2 text-[#C89B6D]">
                 <Clock className="w-4 h-4" />
-                <span className="font-mono text-xs font-bold uppercase tracking-wider">Zero-Leakage Split</span>
+                <span className="font-mono text-xs font-bold uppercase tracking-wider">Chronological Split</span>
               </div>
               <div className="text-2xl font-display font-extrabold text-[#FFFDF8]">
                 70 / 15 / 15 %
               </div>
               <p className="text-xs sm:text-[13px] text-slate-300 font-normal leading-relaxed">
-                Strict chronological order. Time-series split with zero future-data leakage or cross-temporal contamination.
+                Strict time order (70 / 15 / 15). Scalers and calibration are fit on training or validation data only.
               </p>
             </div>
 
@@ -541,7 +401,7 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
                 37 Stations
               </div>
               <p className="text-xs sm:text-[13px] text-slate-300 font-normal leading-relaxed">
-                All 37 continuous CAAQMS monitors active throughout Delhi NCT from Jan 2024 to Apr 2026.
+                37 CAAQMS monitors with usable data from Jan 2024 to Apr 2026 (dead stations were removed).
               </p>
             </div>
 
@@ -551,10 +411,10 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
                 <span className="font-mono text-xs font-bold uppercase tracking-wider">Inference Speed</span>
               </div>
               <div className="text-2xl font-display font-extrabold text-[#FFFDF8]">
-                0.31 ms
+                {mc.latency_ms_per_model.toFixed(2)} ms
               </div>
               <p className="text-xs sm:text-[13px] text-slate-300 font-normal leading-relaxed">
-                Sub-millisecond forward pass per window, enabling real-time edge execution without supercomputing infrastructure.
+                About {mc.latency_ms_per_model.toFixed(2)} ms per model per window on a laptop GPU; a forecast for all 37 stations takes a few milliseconds.
               </p>
             </div>
 
@@ -600,7 +460,7 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
                 <tbody className="divide-y divide-[#232A3B] font-mono">
                   {benchmarkRows.map((row) => (
                     <tr
-                      key={row.model}
+                      key={row.key}
                       className={`transition-colors ${
                         row.isOurs
                           ? 'bg-[#C89B6D]/15 text-white font-medium border-l-4 border-[#ECC138]'
@@ -611,11 +471,11 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
                         {row.isOurs && <span className="w-2 h-2 rounded-full bg-[#ECC138] animate-pulse"></span>}
                         <span className={row.isOurs ? 'text-white font-bold text-xs sm:text-sm' : 'text-slate-200 text-xs sm:text-[13px]'}>{row.model}</span>
                       </td>
-                      <td className="py-4 px-3 font-bold text-[#ECC138] text-xs sm:text-[13px]">{row.rmse.toFixed(2)}</td>
-                      <td className="py-4 px-3 text-xs sm:text-[13px]">{row.mae.toFixed(2)}</td>
-                      <td className="py-4 px-3 font-bold text-white text-xs sm:text-[13px]">{row.r2.toFixed(4)}</td>
-                      <td className="py-4 px-3 text-[#10B981] font-bold text-xs sm:text-[13px]">{row.stableRMSE.toFixed(2)}</td>
-                      <td className="py-4 px-3 text-[#ECC138] font-bold text-xs sm:text-[13px]">{row.volatileRMSE.toFixed(2)}</td>
+                      <td className="py-4 px-3 font-bold text-[#ECC138] text-xs sm:text-[13px]">{fmt(row.rmse)}</td>
+                      <td className="py-4 px-3 text-xs sm:text-[13px]">{fmt(row.mae)}</td>
+                      <td className="py-4 px-3 font-bold text-white text-xs sm:text-[13px]">{fmt(row.r2, 4)}</td>
+                      <td className="py-4 px-3 text-[#10B981] font-bold text-xs sm:text-[13px]">{fmt(row.stable)}</td>
+                      <td className="py-4 px-3 text-[#ECC138] font-bold text-xs sm:text-[13px]">{fmt(row.volatile)}</td>
                       <td className="py-4 px-3 text-slate-400 text-xs sm:text-[13px]">{row.latency}</td>
                       <td className="py-4 px-4 font-sans text-xs text-slate-300 leading-snug">{row.notes}</td>
                     </tr>
@@ -653,7 +513,7 @@ export const StoryEvaluations: React.FC<Props> = ({ summary, baselines }) => {
               onClick={scrollToTwin}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#ECC138] hover:bg-white text-[#0B0E14] font-display font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-[#ECC138]/20"
             >
-              <span>Explore Live Digital Twin</span>
+              <span>Explore the Digital Twin</span>
               <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
             </button>
           </div>

@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Station, StationForecast, WindEdgesMap } from '../../types';
-import { generateStationAttribution } from '../../utils/explainability';
+import { buildAttribution, LIVE_EXPLAIN_MSG } from '../../utils/explainability';
+import { useExplainIndex, useExplainWindow } from '../../hooks/useTwinData';
+import { useTwinStore } from '../../store/useTwinStore';
 import { BrainCircuit, Sparkles, Clock, ArrowDownRight, Info } from 'lucide-react';
 
 interface Props {
@@ -22,18 +24,35 @@ export const WhyForecastTab: React.FC<Props> = ({
   isEmbedded = false,
 }) => {
   const activeEdges = windEdgesMap ? windEdgesMap[String(windowIdx)] : undefined;
+  const { data: explainIndex } = useExplainIndex();
+  const isLive = useTwinStore((s) => s.dataMode) === 'live';
+  const { data: explainWin, isLoading } = useExplainWindow(isLive ? undefined : windowIdx); // one small file for this window
 
+  // Real exports: exact Shapley impacts and the 48-hour attention for this window and station
   const attribution = useMemo(() => {
-    return generateStationAttribution(forecast, station, allStations, activeEdges);
-  }, [forecast, station, allStations, activeEdges]);
+    return buildAttribution(
+      forecast,
+      station,
+      allStations,
+      activeEdges,
+      explainIndex?.players,
+      explainWin?.r[station.id],
+      explainWin?.a[station.id],
+      isLoading,
+      isLive ? LIVE_EXPLAIN_MSG : undefined
+    );
+  }, [forecast, station, allStations, activeEdges, explainIndex, explainWin, isLoading, isLive]);
+
+  const windGraphImpact = attribution.shapFactors.find((f) => f.name === 'Wind graph')?.impact;
 
   // Attention strip hours labels (-48h to -1h)
   const attentionLabels = useMemo(() => {
     return Array.from({ length: 48 }, (_, i) => `-${48 - i}h`);
   }, []);
 
-  // Temporal Attention Chart Option
+  // Temporal Attention Chart Option (an even spread would be 1/48 = 2.1% per hour)
   const attentionChartOption = useMemo(() => {
+    const even = 1 / 48;
     return {
       backgroundColor: 'transparent',
       tooltip: {
@@ -43,7 +62,7 @@ export const WhyForecastTab: React.FC<Props> = ({
         textStyle: { color: '#FFFDF8', fontSize: 11 },
         formatter: (params: any[]) => {
           const p = params[0];
-          return `<div class="font-mono text-xs"><b>${p.name} ago</b>: ${(p.value * 100).toFixed(1)}% temporal weight</div>`;
+          return `<div class="font-mono text-xs"><b>${p.name} ago</b>: ${(p.value * 100).toFixed(2)}% of the attention (even spread = ${(even * 100).toFixed(2)}%)</div>`;
         },
       },
       grid: { left: '2%', right: '2%', bottom: '15%', top: '10%', containLabel: true },
@@ -56,6 +75,7 @@ export const WhyForecastTab: React.FC<Props> = ({
       yAxis: {
         type: 'value',
         show: false,
+        min: 0,
       },
       series: [
         {
@@ -65,8 +85,8 @@ export const WhyForecastTab: React.FC<Props> = ({
           itemStyle: {
             color: (params: any) => {
               const val = params.value;
-              if (val > 0.4) return '#ECC138';
-              if (val > 0.2) return '#C89B6D';
+              if (val > even * 1.5) return '#ECC138';
+              if (val > even * 1.1) return '#C89B6D';
               return '#232A3B';
             },
             borderRadius: [2, 2, 0, 0],
@@ -76,7 +96,7 @@ export const WhyForecastTab: React.FC<Props> = ({
     };
   }, [attentionLabels, attribution.attentionWeights]);
 
-  // Grouped SHAP Bars Option
+  // Exact Shapley bars (largest effect at the top)
   const shapChartOption = useMemo(() => {
     const factors = [...attribution.shapFactors].reverse();
     return {
@@ -89,6 +109,7 @@ export const WhyForecastTab: React.FC<Props> = ({
         formatter: (params: any) => {
           const p = Array.isArray(params) ? params[0] : params;
           const factor = factors[p?.dataIndex ?? 0];
+          if (!factor) return '';
           return `
             <div class="font-bold text-xs text-[#FFFDF8]">${factor.name}</div>
             <div class="text-[11px] text-slate-400 mt-0.5">${factor.description}</div>
@@ -115,7 +136,7 @@ export const WhyForecastTab: React.FC<Props> = ({
           color: '#FFFDF8',
           fontSize: 10,
           formatter: (val: string) => {
-            return val.length > 15 ? val.slice(0, 15) + '…' : val;
+            return val.length > 18 ? val.slice(0, 18) + '…' : val;
           },
         },
       },
@@ -155,7 +176,7 @@ export const WhyForecastTab: React.FC<Props> = ({
                 XAI Spatio-Temporal Attribution
               </h3>
               <p className="text-[11px] text-slate-400 truncate">
-                Multi-head attention & dynamic A(t) graph convolution
+                Exact Shapley contributions & temporal attention of the final model
               </p>
             </div>
           </div>
@@ -169,7 +190,7 @@ export const WhyForecastTab: React.FC<Props> = ({
             <BrainCircuit className="w-3.5 h-3.5 text-[#ECC138] shrink-0" />
             <span>XAI Spatio-Temporal Attribution</span>
           </span>
-          <span className="text-slate-400">Multi-Head GNN Attention</span>
+          <span className="text-slate-400">Exact Shapley + attention</span>
         </div>
       )}
 
@@ -181,7 +202,7 @@ export const WhyForecastTab: React.FC<Props> = ({
             <div className="text-[10px] font-mono uppercase tracking-wider text-[#ECC138] font-bold mb-1 flex items-center gap-1.5">
               <span>Plain-Language Synthesis</span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#C89B6D]"></span>
-              <span className="text-[9px] text-slate-400 lowercase font-normal">faithful template</span>
+              <span className="text-[9px] text-slate-400 lowercase font-normal">from exact Shapley values</span>
             </div>
             <p className="text-xs font-medium text-slate-100 leading-relaxed font-sans">
               "{attribution.summarySentence}"
@@ -190,12 +211,12 @@ export const WhyForecastTab: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Upwind Stations & Advective Inflow */}
+      {/* Wind links of the hourly graph into this station */}
       {attribution.topUpwindStations.length > 0 && (
         <div className="p-3.5 rounded-xl bg-[#0B0E14] border border-[#232A3B]">
           <div className="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
             <ArrowDownRight className="w-3.5 h-3.5 text-[#ECC138] shrink-0" />
-            <span className="truncate">Top Dynamic Inflow Links Feeding Station #{station.id}</span>
+            <span className="truncate">Strongest wind links into Station #{station.id} (hourly wind graph)</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {attribution.topUpwindStations.map((u) => (
@@ -210,10 +231,19 @@ export const WhyForecastTab: React.FC<Props> = ({
               </div>
             ))}
           </div>
+          {windGraphImpact !== undefined && (
+            <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
+              <Info className="w-3 h-3 text-slate-500 shrink-0" />
+              <span>
+                These are links, not attribution: the wind graph moves this forecast by {windGraphImpact >= 0 ? '+' : '−'}
+                {Math.abs(windGraphImpact).toFixed(1)} µg/m³.
+              </span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Temporal Attention Strip + Grouped SHAP Factors */}
+      {/* Temporal Attention Strip + Exact Shapley contributions */}
       <div className={isEmbedded ? 'flex flex-col gap-3.5' : 'grid grid-cols-1 lg:grid-cols-2 gap-4'}>
         {/* Temporal Attention */}
         <div className="p-3.5 rounded-xl bg-[#0B0E14] border border-[#232A3B] flex flex-col">
@@ -222,40 +252,58 @@ export const WhyForecastTab: React.FC<Props> = ({
               <Clock className="w-3.5 h-3.5 text-[#ECC138] shrink-0" />
               <span>48h Historical Attention Weights</span>
             </div>
-            <span className="text-[10px] text-slate-500">GNN Strip</span>
+            <span className="text-[10px] text-slate-500">5-seed average</span>
           </div>
           <div className={`w-full ${isEmbedded ? 'h-[160px]' : 'h-[180px]'}`}>
-            <ReactECharts
-              option={attentionChartOption}
-              style={{ width: '100%', height: '100%' }}
-              opts={{ renderer: 'canvas' }}
-            />
+            {attribution.attentionWeights.length === 48 ? (
+              <ReactECharts
+                option={attentionChartOption}
+                style={{ width: '100%', height: '100%' }}
+                opts={{ renderer: 'canvas' }}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center text-[11px] font-mono text-slate-500">
+                {isLoading ? 'Loading attention…' : isLive ? 'Not available in live mode.' : 'Attention is not available for this window.'}
+              </div>
+            )}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-            <Info className="w-3 h-3 text-slate-500 shrink-0" />
-            <span className="truncate">Taller bars = strongest influence on 24h forecast.</span>
+          <div className="text-[10px] text-slate-400 mt-1 flex items-start gap-1">
+            <Info className="w-3 h-3 text-slate-500 shrink-0 mt-0.5" />
+            <span>
+              Taller bars = hours the model looks at most. Attention is spread fairly evenly, so it shows where the model looks, not how much each hour matters.
+            </span>
           </div>
         </div>
 
-        {/* Grouped SHAP Bars */}
+        {/* Exact Shapley bars */}
         <div className="p-3.5 rounded-xl bg-[#0B0E14] border border-[#232A3B] flex flex-col">
           <div className="flex items-center justify-between mb-1.5 text-xs font-mono">
             <div className="text-slate-300 font-semibold flex items-center gap-1.5">
               <BrainCircuit className="w-3.5 h-3.5 text-[#ECC138]" />
-              <span>SHAP Feature Contributions</span>
+              <span>Exact Shapley Contributions</span>
             </div>
             <span className="text-[10px] text-slate-500">± µg/m³</span>
           </div>
-          <div className={`w-full ${isEmbedded ? 'h-[160px]' : 'h-[180px]'}`}>
-            <ReactECharts
-              option={shapChartOption}
-              style={{ width: '100%', height: '100%' }}
-              opts={{ renderer: 'canvas' }}
-            />
+          <div className={`w-full ${isEmbedded ? 'h-[200px]' : 'h-[220px]'}`}>
+            {attribution.available ? (
+              <ReactECharts
+                option={shapChartOption}
+                style={{ width: '100%', height: '100%' }}
+                opts={{ renderer: 'canvas' }}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center text-[11px] font-mono text-slate-500">
+                {isLoading ? 'Loading contributions…' : isLive ? 'Not available in live mode.' : 'Contributions are not available for this window.'}
+              </div>
+            )}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-            <Info className="w-3 h-3 text-slate-500 shrink-0" />
-            <span className="truncate">Gold increases PM2.5; Camel indicates atmospheric dispersion.</span>
+          <div className="text-[10px] text-slate-400 mt-1 flex items-start gap-1">
+            <Info className="w-3 h-3 text-slate-500 shrink-0 mt-0.5" />
+            <span>
+              Gold pushes the 24-hour mean forecast up, camel pulls it down.
+              {attribution.baseline !== undefined && attribution.forecastMean !== undefined &&
+                ` Reference ${Math.round(attribution.baseline)} + contributions = forecast ${Math.round(attribution.forecastMean)} µg/m³. These describe what the model leans on, not causes.`}
+            </span>
           </div>
         </div>
       </div>

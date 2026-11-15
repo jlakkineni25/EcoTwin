@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useInView } from '../../hooks/useInView';
 import { Station, StationForecast, WindEdgesMap } from '../../types';
 import { useTwinStore } from '../../store/useTwinStore';
+import { useModelCard } from '../../hooks/useTwinData';
 import { getAQICategory, getAQIColor, CPCB_CATEGORIES } from '../../utils/aqi';
 import { 
   Wind, 
@@ -226,6 +227,7 @@ export const StoryDataHero: React.FC<StoryDataHeroProps> = ({
   };
 
   // Chapter metadata with refined narrative hierarchy & highlight terms
+  const { data: mc } = useModelCard();
   const steps = [
     {
       step: 0,
@@ -235,7 +237,7 @@ export const StoryDataHero: React.FC<StoryDataHeroProps> = ({
       subtitle: 'The Flaw of Citywide Averages · Localized Concentration Gradients',
       lead: (
         <>
-          Official bulletins often publish a single citywide AQI. In reality, Delhi’s atmosphere is intensely fractured. High-emission industrial basins like <strong className="text-[#FFFDF8]">Anand Vihar</strong> exceed <span className="text-[#EF4444] font-semibold">380 µg/m³</span>, while upwind forest zones remain half that level. Single-station forecasters miss this spatial disparity.
+          Official bulletins often publish a single citywide AQI. In reality, Delhi’s atmosphere is intensely fractured. High-emission areas like <strong className="text-[#FFFDF8]">Anand Vihar</strong> can run far above the cleanest stations at the same hour (see the spread below). Single-station forecasters miss this spatial disparity.
         </>
       ),
       instruction: 'Hover or click any sensor node to inspect localized microclimates and CPCB severity across the NCT perimeter.',
@@ -259,7 +261,7 @@ export const StoryDataHero: React.FC<StoryDataHeroProps> = ({
       instruction: 'Observe the dynamic directed vectors A(t). Moving energy packets follow winter wind streamlines, carrying particulate mass downwind.',
       stats: [
         { label: 'Winter Advection', val: '315° NW Vector', color: '#38BDF8' },
-        { label: 'Directed Links', val: `${activeEdges.length} Active Couplings`, color: '#ECC138' },
+        { label: 'Wind Links', val: `Strongest ${activeEdges.length}`, color: '#ECC138' },
         { label: 'Transport Law', val: '∂c/∂t = -u·∇c', color: '#C89B6D' }
       ]
     },
@@ -267,18 +269,18 @@ export const StoryDataHero: React.FC<StoryDataHeroProps> = ({
       step: 2,
       badge: 'CHAPTER 03 // 24H FORECAST',
       phase: 'Neural Spatio-Temporal Prediction',
-      title: 'Predicting Inversion Spikes 24 Hours in Advance',
-      subtitle: 'Physics-Informed WA-TGCN · Multi-Horizon Early Warning',
+      title: 'A 24-Hour Forecast for Every Station',
+      subtitle: 'WA-TGCN · Multi-Horizon Forecast',
       lead: (
         <>
-          EcoTwin couples dynamic wind-conditioned adjacency matrices <strong className="text-[#ECC138]">A(t)</strong> with temporal recurrent units (<span className="text-[#10B981] font-semibold">WA-TGCN</span>). Instead of reacting after the air turns hazardous, the digital twin anticipates toxic winter inversion spikes <strong className="text-[#FFFDF8]">12 to 18 hours before</strong> peak concentrations reach ground level.
+          EcoTwin couples dynamic wind-conditioned adjacency matrices <strong className="text-[#ECC138]">A(t)</strong> with temporal recurrent units (<span className="text-[#10B981] font-semibold">WA-TGCN</span>). Instead of reacting after the air turns hazardous, the digital twin forecasts PM2.5 for each of the next <strong className="text-[#FFFDF8]">24 hours</strong> at every station, so you can see where levels are heading.
         </>
       ),
       instruction: 'Inspect the 24-hour neural forecast fan curve below. Notice how the model flags impending CPCB threshold breaches in advance.',
       stats: [
         { label: 'Forecast Horizon', val: '24 Hours Ahead', color: '#FFFDF8' },
-        { label: 'Test Accuracy', val: '±8.9 µg/m³ MAE', color: '#10B981' },
-        { label: 'Lead Time', val: '14.5 Hours Early', color: '#ECC138' }
+        { label: 'Test MAE', val: `${mc ? mc.overall.mae.toFixed(1) : '—'} µg/m³`, color: '#10B981' },
+        { label: 'Test RMSE', val: `${mc ? mc.overall.rmse.toFixed(1) : '—'} µg/m³ (persistence ${mc ? mc.persistence.rmse.toFixed(1) : '—'})`, color: '#ECC138' }
       ]
     }
   ];
@@ -867,7 +869,7 @@ export const StoryDataHero: React.FC<StoryDataHeroProps> = ({
                           <span className="w-2.5 h-0.5 bg-[#ECC138]" /> Predicted (WA-TGCN)
                         </span>
                         <span className="flex items-center gap-1">
-                          <span className="w-2.5 h-0.5 bg-slate-500" /> Actual Ground Truth
+                          <span className="w-2.5 h-0.5 bg-slate-500" /> Observed
                         </span>
                         <span className="text-amber-400 font-semibold">
                           CPCB: 60 µg/m³

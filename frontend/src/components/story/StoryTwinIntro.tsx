@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { degToCompass } from '../../utils/wind';
 import { useInView } from '../../hooks/useInView';
 import { Station, StationForecast, WindEdgesMap } from '../../types';
 import { useTwinStore } from '../../store/useTwinStore';
@@ -34,7 +35,8 @@ export const StoryTwinIntro: React.FC<StoryTwinIntroProps> = ({
     selectedStationId, 
     setSelectedStationId, 
     compassAngle, 
-    windSpeedMultiplier 
+    windSpeedMultiplier,
+    realWind 
   } = useTwinStore();
 
   // Clean layer toggles
@@ -219,7 +221,7 @@ export const StoryTwinIntro: React.FC<StoryTwinIntroProps> = ({
 
             <div className="xl:max-w-xl space-y-3">
               <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
-                Air pollution is not a static number—it is a continuous fluid network. EcoTwin binds 37 continuous CAAQMS monitoring stations with live meteorological wind advection into a wind-aware neural twin, revealing hazardous nocturnal inversion plumes up to 18 hours before ground-level impact.
+                Air pollution is not a static number—it is a continuous fluid network. EcoTwin binds 37 continuous CAAQMS monitoring stations with hourly wind data into a wind-aware neural twin that forecasts PM2.5 at every station for the next 24 hours.
               </p>
               
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-mono text-slate-400">
@@ -507,7 +509,10 @@ export const StoryTwinIntro: React.FC<StoryTwinIntroProps> = ({
               <Compass className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-[#ECC138]" />
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <span className="text-slate-400 hidden sm:inline">Surface Wind:</span>
-                <span className="text-[#FFFDF8] font-bold">{compassAngle}° NW @ {windSpeedMultiplier.toFixed(1)}x</span>
+                <span className="text-[#FFFDF8] font-bold">
+                  {realWind ? `${compassAngle}° ${degToCompass(compassAngle)} · ${(realWind.speedMs * windSpeedMultiplier).toFixed(1)} m/s` : 'unavailable'}
+                  {realWind && windSpeedMultiplier !== 1 ? ` (${windSpeedMultiplier.toFixed(1)}x)` : ''}
+                </span>
                 <span className="text-slate-600 hidden md:inline">·</span>
                 <span className="text-cyan-400 font-semibold hidden md:inline">Advection Active</span>
               </div>
@@ -566,7 +571,7 @@ export const StoryTwinIntro: React.FC<StoryTwinIntroProps> = ({
                   {activeStation.name}
                 </div>
                 <div className="flex items-baseline justify-between pt-0.5">
-                  <span className="text-slate-400">Live PM2.5:</span>
+                  <span className="text-slate-400">Current PM2.5:</span>
                   <span className="text-lg font-display font-extrabold text-[#FFFDF8]">
                     {Math.round(activeForecast.current_pm25)} <span className="text-xs font-mono text-[#ECC138]">µg/m³</span>
                   </span>

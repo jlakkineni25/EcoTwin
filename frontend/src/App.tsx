@@ -1,13 +1,21 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTwinStore } from './store/useTwinStore';
 import {
   useStations,
   useSummary,
-  usePlayback,
-  useWindEdges,
-  useWhatIf,
-  useBaselines
+  usePlaybackIndex,
+  usePlaybackFrame,
+  useWindEdgesWindow,
+  useWindNow,
+  useLiveMeta,
+  useLiveFrame,
+  useLiveWind,
+  useLiveEdges,
+  useCalibration,
+  useModelCard
 } from './hooks/useTwinData';
+import { liveAgeHours, LIVE_FRESH_HOURS } from './utils/live';
 import { StoryNav } from './components/story/StoryNav';
 import { StoryHero } from './components/story/StoryHero';
 import { StoryDataHero } from './components/story/StoryDataHero';
@@ -20,14 +28,16 @@ import { StoryEvaluations } from './components/story/StoryEvaluations';
 import { PanelWalkthrough } from './components/walkthrough/PanelWalkthrough';
 import { CitizenExperience } from './components/citizen/CitizenExperience';
 import { AlertCircle, Wind, Command, X } from 'lucide-react';
+import { asset } from './utils/paths';
 
 export const App: React.FC = () => {
   const { data: stations, isLoading: loadingStations, error: errStations } = useStations();
   const { data: summary, isLoading: loadingSummary } = useSummary();
-  const { data: playback, isLoading: loadingPlayback, error: errPlayback } = usePlayback();
-  const { data: windEdges } = useWindEdges();
-  const { data: whatIfData } = useWhatIf();
-  const { data: baselines } = useBaselines();
+  const { data: pbIndex, isLoading: loadingPbIndex, error: errPbIndex } = usePlaybackIndex();
+  const queryClient = useQueryClient();
+  const { data: modelCard } = useModelCard();
+  const { data: windNow } = useWindNow();
+  const { isLoading: loadingCalibration } = useCalibration();
 
   const {
     selectedStationId,
@@ -40,13 +50,33 @@ export const App: React.FC = () => {
     startDemo,
     stopDemo,
     setActiveStudioView,
-    compassAngle,
+    scenarioKey,
+    setCompassAngle,
+    setRealWind,
+    dataMode,
+    setDataMode,
   } = useTwinStore();
 
-  const isLoading = loadingStations || loadingSummary || loadingPlayback;
-  const isError = errStations || errPlayback;
+  const totalWindows = pbIndex?.windows.length || 970;
 
-  const totalWindows = playback?.length || 970;
+  // Live or replay: live data is used when it exists and is fresh (the visitor can switch either way)
+  const { data: liveMeta } = useLiveMeta();
+  const liveAge = liveMeta ? liveAgeHours(liveMeta.now_hour) : null;
+  const liveFresh = liveAge !== null && liveAge <= LIVE_FRESH_HOURS;
+  const modeChosen = useRef(false);
+  useEffect(() => {
+    if (!modeChosen.current && liveMeta) {
+      modeChosen.current = true;
+      if (liveFresh) setDataMode('live');
+    }
+  }, [liveMeta, liveFresh, setDataMode]);
+  const isLive = dataMode === 'live' && !!liveMeta;
+  const { data: liveFrame, isError: liveFrameError } = useLiveFrame(isLive, liveMeta?.generated_at);
+  const { data: liveWind } = useLiveWind(isLive, liveMeta?.generated_at);
+  const { data: liveEdges } = useLiveEdges(isLive, liveMeta?.generated_at);
+  useEffect(() => {
+    if (isLive && liveFrameError) setDataMode('replay'); // live files unreadable: fall back to replay
+  }, [isLive, liveFrameError, setDataMode]);
 
   // View Mode: 'citizen' (Citizen-first default) vs 'research' (Full WA-TGCN research platform)
   const [viewMode, setViewMode] = useState<'citizen' | 'research'>('citizen');
@@ -63,6 +93,9 @@ export const App: React.FC = () => {
         return;
       }
 
+      // The shortcuts belong to the research view only; the Citizen page keeps normal scrolling and keyboard behaviour
+      if (viewMode !== 'research') return;
+
       if (e.key === 'Escape') {
         setIsShortcutsOpen(false);
         return;
@@ -73,13 +106,15 @@ export const App: React.FC = () => {
       }
 
       if (e.key === ' ' || e.code === 'Space') {
+        // Space on a focused button / select / link must still activate it
+        if (['BUTTON', 'SELECT', 'A'].includes((e.target as HTMLElement)?.tagName)) return;
         e.preventDefault();
         togglePlaying();
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === 'ArrowRight' && dataMode !== 'live') {
         e.preventDefault();
         setIsPlaying(false);
         setCurrentWindowIdx(Math.min(totalWindows - 1, currentWindowIdx + 1));
-      } else if (e.key === 'ArrowLeft') {
+      } else if (e.key === 'ArrowLeft' && dataMode !== 'live') {
         e.preventDefault();
         setIsPlaying(false);
         setCurrentWindowIdx(Math.max(0, currentWindowIdx - 1));
@@ -121,15 +156,43 @@ export const App: React.FC = () => {
     startDemo,
     stopDemo,
     setActiveStudioView,
-    isShortcutsOpen
+    isShortcutsOpen,
+    viewMode,
+    dataMode
   ]);
 
   // Current frame data
-  const currentFrame = useMemo(() => {
-    if (!playback || playback.length === 0) return null;
-    const idx = Math.min(Math.max(0, currentWindowIdx), playback.length - 1);
-    return playback[idx];
-  }, [playback, currentWindowIdx]);
+  // The window on screen: one small file per window (the next few are fetched ahead while playing)
+  const windowId = pbIndex ? pbIndex.windows[Math.min(Math.max(0, currentWindowIdx), pbIndex.windows.length - 1)] : undefined;
+  const { data: frameData, isLoading: loadingFrame, error: errFrame } = usePlaybackFrame(windowId);
+  const currentFrame = isLive ? liveFrame ?? null : frameData ?? null;
+
+  // Wind links of the window on screen (replay: one small file per window; live: the live file), keyed like the components expect
+  const { data: windEdgesNow } = useWindEdgesWindow(isLive ? undefined : currentFrame?.window_idx);
+  const activeEdgesMap = useMemo(() => {
+    if (isLive) return liveEdges;
+    return currentFrame && windEdgesNow ? { [String(currentFrame.window_idx)]: windEdgesNow } : undefined;
+  }, [isLive, liveEdges, currentFrame, windEdgesNow]);
+
+  useEffect(() => {
+    if (!pbIndex || isLive) return;
+    for (let k = 1; k <= 3; k++) {
+      const id = pbIndex.windows[(currentWindowIdx + k) % pbIndex.windows.length];
+      queryClient.prefetchQuery({
+        queryKey: ['playback_frame', id],
+        queryFn: () => fetch(asset(`/data/playback/${id}.json`)).then((r) => r.json()),
+        staleTime: Infinity,
+      });
+      queryClient.prefetchQuery({
+        queryKey: ['wind_edges', id],
+        queryFn: () => fetch(asset(`/data/wind_edges/${id}.json`)).then((r) => r.json()),
+        staleTime: Infinity,
+      });
+    }
+  }, [pbIndex, currentWindowIdx, queryClient, isLive]);
+
+  const isLoading = loadingStations || loadingSummary || loadingPbIndex || loadingFrame || loadingCalibration || (isLive && !liveFrame);
+  const isError = errStations || errPbIndex || errFrame;
 
   // Selected station metadata & forecast
   const selectedStation = useMemo(() => {
@@ -144,6 +207,21 @@ export const App: React.FC = () => {
       currentFrame.stations[0]
     );
   }, [currentFrame, selectedStation]);
+
+  // Real wind of the current window; the what-if compass follows it until a scenario is chosen
+  const windFrame = useMemo(() => {
+    if (!currentFrame) return null;
+    if (isLive) return liveWind?.['0'] ?? null;
+    return windNow ? windNow[String(currentFrame.window_idx)] ?? null : null;
+  }, [currentFrame, windNow, liveWind, isLive]);
+  useEffect(() => {
+    if (!windFrame) {
+      setRealWind(null);
+      return;
+    }
+    setRealWind({ speedMs: windFrame.s, fromDeg: windFrame.d });
+    if (scenarioKey === 'baseline') setCompassAngle(windFrame.d);
+  }, [windFrame, scenarioKey, setRealWind, setCompassAngle]);
 
   if (isLoading) {
     return (
@@ -162,7 +240,7 @@ export const App: React.FC = () => {
     );
   }
 
-  if (isError || !playback || !stations || !currentFrame || !selectedStation || !selectedForecast) {
+  if (isError || !pbIndex || !stations || !currentFrame || !selectedStation || !selectedForecast) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#0B0E14] text-white p-6">
         <div className="p-6 rounded-2xl bg-[#121620] border border-[#232A3B] max-w-md text-center flex flex-col items-center gap-3">
@@ -186,7 +264,7 @@ export const App: React.FC = () => {
         timestamp={currentFrame.timestamp}
         selectedStationId={selectedStationId}
         onSelectStation={(id) => setSelectedStationId(id)}
-        compassAngle={compassAngle}
+        wind={windFrame ? { fromDeg: windFrame.d, speedKmh: windFrame.s * 3.6 } : null}
         onExploreResearch={() => {
           setViewMode('research');
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -207,14 +285,14 @@ export const App: React.FC = () => {
 
       {/* Chapter 1: The Crisis (Experimental Variant Switcher) */}
       {heroVariant === 'cinematic' ? (
-        <StoryHero onSwitchVariant={() => setHeroVariant('datastory')} />
+        <StoryHero onSwitchVariant={() => setHeroVariant('datastory')} stations={stations} currentFrame={currentFrame} />
       ) : (
         <StoryDataHero
           stations={stations}
           currentFrame={currentFrame}
           selectedStation={selectedStation}
           selectedForecast={selectedForecast}
-          windEdges={windEdges}
+          windEdges={activeEdgesMap}
           onSwitchVariant={() => setHeroVariant('cinematic')}
         />
       )}
@@ -232,7 +310,7 @@ export const App: React.FC = () => {
       <StoryTwinIntro
         stations={stations}
         currentFrame={currentFrame}
-        windEdges={windEdges}
+        windEdges={activeEdgesMap}
       />
 
       {/* The Digital Twin Studio (Dedicated Spacious Interactive Workspace) */}
@@ -241,13 +319,12 @@ export const App: React.FC = () => {
         currentFrame={currentFrame}
         selectedStation={selectedStation}
         selectedForecast={selectedForecast}
-        totalWindows={playback.length}
-        windEdges={windEdges}
-        whatIfData={whatIfData}
+        totalWindows={totalWindows}
+        windEdges={activeEdgesMap}
       />
 
       {/* Chapter 6: Operational Rigor & Academic Credibility */}
-      <StoryEvaluations summary={summary} baselines={baselines} />
+      <StoryEvaluations summary={summary} modelCard={modelCard} />
 
       {/* Examiner Guided Walkthrough Overlay */}
       <PanelWalkthrough />

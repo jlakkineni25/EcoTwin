@@ -1,6 +1,7 @@
 import React from 'react';
 import { Station, StationForecast } from '../../types';
 import { formatObservationTimestamp } from '../../utils/citizenZones';
+import { DataSourceBadge } from '../layout/DataSourceBadge';
 import { ShieldCheck, Sparkles, MapPin, Clock } from 'lucide-react';
 
 interface Props {
@@ -46,17 +47,9 @@ export const CitizenHero: React.FC<Props> = ({
             </p>
           </div>
 
-          {/* Historical Data Transparency Badge */}
-          <div className="self-start md:self-end flex flex-col items-start md:items-end text-left md:text-right">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#121620] border border-[#232A3B] text-slate-300 text-xs">
-              <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="font-mono text-[11px] text-slate-300">
-                {timeInfo.formattedDate} · {timeInfo.formattedTime}
-              </span>
-            </div>
-            <span className="text-[10px] text-slate-400 font-mono mt-1">
-              Historical CPCB Station Record · 37 Monitored Nodes
-            </span>
+          {/* Where the data comes from: live readings or a recorded day */}
+          <div className="self-start md:self-end">
+            <DataSourceBadge compact timestamp={timestamp} />
           </div>
         </div>
       </div>

@@ -9,7 +9,7 @@ export interface StationZoneMeta {
   landmark: string;
 }
 
-// Official Delhi administrative zoning for all 37 monitoring stations
+// Approximate grouping of the 37 monitoring stations into five Delhi areas (hand-written; not an official boundary)
 export const STATION_ZONE_MAPPING: Record<number, StationZoneMeta> = {
   0: { zone: 'Central', areaType: 'Commercial / Traffic Hub', landmark: 'ITO Intersection & Ring Road' },
   1: { zone: 'North', areaType: 'Industrial / Residential', landmark: 'Jahangirpuri & Outer Ring Road' },
@@ -35,7 +35,7 @@ export const STATION_ZONE_MAPPING: Record<number, StationZoneMeta> = {
   21: { zone: 'East', areaType: 'Riverine / Trans-Yamuna', landmark: 'Sonia Vihar & Water Works' },
   22: { zone: 'West', areaType: 'Industrial / Commercial', landmark: 'Shadipur & Patel Nagar' },
   23: { zone: 'South', areaType: 'Commercial / Residential', landmark: 'Sri Aurobindo Marg & Hauz Khas' },
-  24: { zone: 'East', areaType: 'Transit / Heavy Inversion Hotspot', landmark: 'Anand Vihar ISBT & Railway Terminal' },
+  24: { zone: 'East', areaType: 'Transit hub (ISBT & railway)', landmark: 'Anand Vihar ISBT & Railway Terminal' },
   25: { zone: 'North', areaType: 'University / Suburb', landmark: 'Delhi Technological University (DTU)' },
   26: { zone: 'Central', areaType: 'Historical / Low-Density Park', landmark: 'Lodhi Road & India Habitat Centre' },
   27: { zone: 'Central', areaType: 'Heritage / High-Density Market', landmark: 'Chandni Chowk & Old Delhi' },
@@ -89,45 +89,23 @@ export interface CitizenHealthGuidance {
 export function formatObservationTimestamp(ts: string): {
   formattedDate: string;
   formattedTime: string;
-  fullLabel: string;
 } {
-  if (!ts) {
-    return {
-      formattedDate: 'Dec 8, 2025',
-      formattedTime: '12:00 PM',
-      fullLabel: 'Dec 8, 2025 at 12:00 PM · Historical CPCB Station Record',
-    };
-  }
+  // No time available: say so, never show a made-up date
+  const unavailable = { formattedDate: 'Time not available', formattedTime: '' };
+  if (!ts) return unavailable;
 
-  try {
-    const parts = ts.split(' ');
-    const datePart = parts[0];
-    const timePart = parts[1] || '12:00';
-    const [year, month, day] = datePart.split('-');
-    const [hour, minute] = timePart.split(':');
-    const h = parseInt(hour, 10);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const displayHour = h % 12 || 12;
+  const parts = ts.split(' ');
+  const [year, month, day] = parts[0].split('-');
+  const [hour, minute] = (parts[1] || '').split(':');
+  const h = parseInt(hour, 10);
+  const mIdx = parseInt(month, 10) - 1;
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  if (!year || !monthNames[mIdx] || !parseInt(day, 10) || isNaN(h) || minute === undefined) return unavailable;
 
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const mIdx = parseInt(month, 10) - 1;
-    const mName = monthNames[mIdx] || 'Dec';
-
-    const formattedDate = `${mName} ${parseInt(day, 10)}, ${year}`;
-    const formattedTime = `${displayHour}:${minute} ${ampm}`;
-
-    return {
-      formattedDate,
-      formattedTime,
-      fullLabel: `${formattedDate} at ${formattedTime} · Historical CPCB Station Record`,
-    };
-  } catch {
-    return {
-      formattedDate: 'Dec 8, 2025',
-      formattedTime: '12:00 PM',
-      fullLabel: `${ts} · Historical CPCB Station Record`,
-    };
-  }
+  return {
+    formattedDate: `${monthNames[mIdx]} ${parseInt(day, 10)}, ${year}`,
+    formattedTime: `${h % 12 || 12}:${minute} ${h >= 12 ? 'PM' : 'AM'}`,
+  };
 }
 
 export function getCitizenHealthGuidance(pm25: number): CitizenHealthGuidance {
@@ -305,188 +283,34 @@ export function getCitizenHealthGuidance(pm25: number): CitizenHealthGuidance {
   };
 }
 
-export interface DayWindowHighlight {
-  bestWindow: {
-    startHour: string;
-    endHour: string;
-    avgVal: number;
-    category: AQICategory;
-    tip: string;
-  };
-  peakWarning: {
-    startHour: string;
-    endHour: string;
-    peakVal: number;
-    category: AQICategory;
-    reason: string;
-  };
-}
-
-export function computeDailyWindowHighlights(
-  actualOrPredicted24h: number[],
-  baseTimestamp: string
-): DayWindowHighlight {
-  if (!actualOrPredicted24h || actualOrPredicted24h.length === 0) {
-    return {
-      bestWindow: {
-        startHour: '2:00 PM',
-        endHour: '4:00 PM',
-        avgVal: 95,
-        category: 'Poor',
-        tip: 'Solar boundary layer mixing dilutes ground pollutants',
-      },
-      peakWarning: {
-        startHour: '11:00 PM',
-        endHour: '4:00 AM',
-        peakVal: 240,
-        category: 'Very Poor',
-        reason: 'Cooling night temperatures trap vehicle exhaust near ground level',
-      },
-    };
-  }
-
-  const baseDate = new Date(baseTimestamp.replace(' ', 'T'));
-  const hours = actualOrPredicted24h.map((val, i) => {
-    const d = new Date(baseDate.getTime() + (i + 1) * 3600 * 1000);
-    return { hour: d.getHours(), val, idx: i };
-  });
-
-  // Find lowest 3-consecutive-hour average
-  let lowestAvg = Infinity;
-  let bestIdx = 0;
-  for (let i = 0; i <= hours.length - 3; i++) {
-    const avg = (hours[i].val + hours[i + 1].val + hours[i + 2].val) / 3;
-    if (avg < lowestAvg) {
-      lowestAvg = avg;
-      bestIdx = i;
-    }
-  }
-
-  // Find peak hour
-  let peakVal = -Infinity;
-  let peakIdx = 0;
-  hours.forEach((h, i) => {
-    if (h.val > peakVal) {
-      peakVal = h.val;
-      peakIdx = i;
-    }
-  });
-
-  const formatHour = (hourNum: number) => {
-    const ampm = hourNum >= 12 ? 'PM' : 'AM';
-    const h = hourNum % 12 || 12;
-    return `${h}:00 ${ampm}`;
-  };
-
-  const bestStartHour = formatHour(hours[bestIdx].hour);
-  const bestEndHour = formatHour((hours[bestIdx].hour + 3) % 24);
-  const peakStartHour = formatHour(hours[Math.max(0, peakIdx - 1)].hour);
-  const peakEndHour = formatHour((hours[Math.min(hours.length - 1, peakIdx + 2)].hour) % 24);
-
-  return {
-    bestWindow: {
-      startHour: bestStartHour,
-      endHour: bestEndHour,
-      avgVal: Math.round(lowestAvg),
-      category: getAQICategory(lowestAvg),
-      tip: 'Warm daytime sunlight expands the atmospheric mixing layer, offering the cleanest breathing window.',
-    },
-    peakWarning: {
-      startHour: peakStartHour,
-      endHour: peakEndHour,
-      peakVal: Math.round(peakVal),
-      category: getAQICategory(peakVal),
-      reason: 'Nocturnal thermal inversion creates a cold atmospheric lid, trapping vehicular and industrial smoke.',
-    },
-  };
-}
-
-export function describeWindMovement(angleDeg: number, speedKmh = 8.5): {
+export function describeWindMovement(angleDeg: number, speedKmh: number): {
   directionText: string;
   sourceText: string;
   destinationText: string;
   impactNarrative: string;
 } {
-  // Normalize angle to 0-360
+  // Normalize angle to 0-360 (direction the wind blows FROM)
   const deg = ((angleDeg % 360) + 360) % 360;
+  const kmh = Math.round(speedKmh);
 
-  if (deg >= 292.5 && deg < 337.5) {
-    return {
-      directionText: 'North-West (NW)',
-      sourceText: 'Punjab & Haryana Agricultural Plains',
-      destinationText: 'Central & East Delhi (Anand Vihar, Patparganj)',
-      impactNarrative:
-        `A gentle ${speedKmh} km/h breeze from the North-West is sweeping regional smoke plumes through Rohini and Wazirpur toward Central and Trans-Yamuna neighborhoods. Downwind districts in East Delhi are likely to experience increased particle accumulation over the coming hours.`,
-    };
-  }
+  let sector = { directionText: 'Northerly (N)', sourceText: 'Northern Delhi borders', destinationText: 'South Delhi & the southern ridge' };
+  if (deg >= 292.5 && deg < 337.5) sector = { directionText: 'North-West (NW)', sourceText: 'Punjab & Haryana plains', destinationText: 'Central & East Delhi (Anand Vihar, Patparganj)' };
+  else if (deg >= 247.5 && deg < 292.5) sector = { directionText: 'Westerly (W)', sourceText: 'Western NCR & Rajasthan border', destinationText: 'Central Delhi & East Delhi' };
+  else if (deg >= 202.5 && deg < 247.5) sector = { directionText: 'South-West (SW)', sourceText: 'Gurugram & the southern highway corridor', destinationText: 'North and North-East Delhi' };
+  else if (deg >= 157.5 && deg < 202.5) sector = { directionText: 'Southerly (S)', sourceText: 'Faridabad & the Aravalli ridge', destinationText: 'North Delhi & the Yamuna floodplain' };
+  else if (deg >= 112.5 && deg < 157.5) sector = { directionText: 'South-East (SE)', sourceText: 'Noida & the Uttar Pradesh border', destinationText: 'North-West Delhi (Bawana, Narela)' };
+  else if (deg >= 67.5 && deg < 112.5) sector = { directionText: 'Easterly (E)', sourceText: 'Ghaziabad & western Uttar Pradesh', destinationText: 'West Delhi & the airport area' };
+  else if (deg >= 22.5 && deg < 67.5) sector = { directionText: 'North-East (NE)', sourceText: 'North-East of Delhi', destinationText: 'South & South-West Delhi' };
 
-  if (deg >= 247.5 && deg < 292.5) {
-    return {
-      directionText: 'Westerly (W)',
-      sourceText: 'Western NCR & Rajasthan Border',
-      destinationText: 'Central Delhi & East NCT',
-      impactNarrative:
-        `Steady ${speedKmh} km/h westerly winds carry arid dust and suburban emissions straight across Mundka and Punjabi Bagh toward the city core.`,
-    };
-  }
+  const word = kmh < 3.6 ? 'calm' : kmh < 12 ? 'light' : kmh < 20 ? 'gentle' : kmh < 30 ? 'moderate' : 'strong';
+  const impactNarrative =
+    kmh < 3.6
+      ? `The air is almost still (${kmh} km/h), so there is little ventilation or transport; pollution tends to stay close to where it is produced.`
+      : `A ${word} ${kmh} km/h wind is blowing from the ${
+          { N: 'north', NE: 'north-east', E: 'east', SE: 'south-east', S: 'south', SW: 'south-west', W: 'west', NW: 'north-west' }[
+            (sector.directionText.match(/\((\w+)\)/)?.[1] ?? 'N') as 'N'
+          ]
+        }, moving air from ${sector.sourceText} toward ${sector.destinationText}. Neighbourhoods on the downwind side may see particles drift their way over the coming hours.`;
 
-  if (deg >= 202.5 && deg < 247.5) {
-    return {
-      directionText: 'South-West (SW)',
-      sourceText: 'Gurugram & Southern Highway Corridors',
-      destinationText: 'North and North-East Delhi',
-      impactNarrative:
-        `Winds blowing from the South-West at ${speedKmh} km/h channel vehicular traffic plumes from the NH-48 corridor into Central and North Delhi.`,
-    };
-  }
-
-  if (deg >= 157.5 && deg < 202.5) {
-    return {
-      directionText: 'Southerly (S)',
-      sourceText: 'Faridabad & Aravalli Ridges',
-      destinationText: 'North NCT & Yamuna Floodplains',
-      impactNarrative:
-        `Southerly air currents at ${speedKmh} km/h push warm industrial emissions from Okhla and Faridabad northward along the Yamuna drainage basin.`,
-    };
-  }
-
-  if (deg >= 112.5 && deg < 157.5) {
-    return {
-      directionText: 'South-East (SE)',
-      sourceText: 'Noida & Uttar Pradesh Border',
-      destinationText: 'North-West Delhi (Bawana, Narela)',
-      impactNarrative:
-        `Moist south-easterly breezes at ${speedKmh} km/h push cross-border industrial haze into Central and North-Western Delhi.`,
-    };
-  }
-
-  if (deg >= 67.5 && deg < 112.5) {
-    return {
-      directionText: 'Easterly (E)',
-      sourceText: 'Ghaziabad & Western UP Plains',
-      destinationText: 'West Delhi & Airport Airshed',
-      impactNarrative:
-        `Easterly airflow at ${speedKmh} km/h brings stagnant trans-Yamuna moisture and smoke across the city toward Dwarka and Najafgarh.`,
-    };
-  }
-
-  if (deg >= 22.5 && deg < 67.5) {
-    return {
-      directionText: 'North-East (NE)',
-      sourceText: 'Upper Gangetic Basin',
-      destinationText: 'South & South-West Delhi',
-      impactNarrative:
-        `North-easterly winds at ${speedKmh} km/h gently transport morning haze across Sonia Vihar and ITO toward South Delhi's residential colonies.`,
-    };
-  }
-
-  // Northerly default
-  return {
-    directionText: 'Northerly (N)',
-    sourceText: 'Northern Foothills & Alipur Air Corridor',
-    destinationText: 'South Delhi & NCR Borders',
-    impactNarrative:
-      `Northerly breezes at ${speedKmh} km/h carry cooler air from the northern periphery through the center of Delhi toward the southern ridges.`,
-  };
+  return { ...sector, impactNarrative };
 }
-
