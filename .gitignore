@@ -92,3 +92,6 @@ Thumbs.db
 desktop.ini
 .idea/
 .vscode/
+
+# --- presentation figures and screenshots (regenerable with v2_clean/make_slide_figures.py); the script itself is kept ---
+v2_clean/ppt_figures/
