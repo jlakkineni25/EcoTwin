@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-11-21 12:32:22 IST",
+  "now_hour": "2026-11-21 08:00",
+  "age_hours": 4.5,
+  "stations_total": 37,
+  "stations_mapped": 35,
+  "stations_observed_now": 32,
+  "model": "WA-TGCN dyn_adv, 5-seed ensemble (dynamic wind graph + upwind transport features), forecast wind from Open-Meteo",
+  "sources": [
+    "OpenAQ v3 hourly (CPCB network)",
+    "Open-Meteo forecast API (recent + forecast wind)"
+  ],
+  "reference_test_rmse": 58.32,
+  "notes": [
+    "actual_24h is empty in live frames (the future is not known yet)",
+    "p10_24h / p90_24h are the 10th / 90th percentile across the 5 seeds (ensemble spread, not a calibrated interval)",
+    "training wind was ERA5 reanalysis; live wind is Open-Meteo recent analysis and forecast",
+    "reference_test_rmse is the Delhi test-period RMSE (ug/m3) of this model with a real day-old forecast wind (notebook 39)",
+    "what-if scenarios are model-sensitivity tests, not causal predictions; each carries a check field (as expected / unexpected / exploratory)"
+  ],
+  "wind_now": {
+    "s": 1.63,
+    "d": 81,
+    "fs": 0.64,
+    "fd": 37
+  }
+}
